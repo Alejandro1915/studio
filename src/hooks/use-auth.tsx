@@ -123,11 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const firebaseUser = userCredential.user;
         await updateProfile(firebaseUser, { displayName: name });
         
-        // Assign admin role to the first user
         const usersCollection = collection(db, "users");
         const snapshot = await getCountFromServer(usersCollection);
         const userCount = snapshot.data().count;
-        const role = userCount === 0 ? 'admin' : 'user';
+
+        let role: 'admin' | 'user' = 'user';
+        if (userCount === 0 || email.endsWith('@mast.otak.co')) {
+            role = 'admin';
+        }
 
         await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role });
 
