@@ -10,9 +10,11 @@ import {
   GoogleAuthProvider,
   User as FirebaseUser,
   createUserWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 interface User {
   uid: string;
@@ -27,10 +29,16 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const checkNicknameUniqueness = async (name: string): Promise<boolean> => {
+    const q = query(collection(db, "users"), where("name", "==", name));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.empty;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -40,10 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        const { uid, displayName, email, photoURL } = firebaseUser;
-        setUser({ uid, name: displayName, email, photoURL });
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const { name, email, photoURL } = userDoc.data();
+          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL });
+        } else {
+          // This case handles Google sign-in for the first time
+           const { uid, displayName, email, photoURL } = firebaseUser;
+           const newUser = { uid, name: displayName, email, photoURL };
+           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL });
+           setUser(newUser);
+        }
       } else {
         setUser(null);
       }
@@ -54,32 +72,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/') {
+    if (!loading && !user && pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
       router.push('/login');
+    }
+    if(!loading && user && (pathname === '/login' || pathname === '/signup')){
+        router.push('/dashboard');
     }
   }, [user, loading, pathname, router]);
 
-  const handleAuthAction = async (action: Promise<any>, successMessage: string, successPath: string) => {
+  const handleAuthAction = async (action: () => Promise<any>, successMessage: string, successPath: string) => {
     try {
-      await action;
+      await action();
       toast({ title: 'Éxito', description: successMessage });
       router.push(successPath);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
+      throw error;
     }
   };
 
   const login = async (email: string, password: string) => {
     await handleAuthAction(
-      signInWithEmailAndPassword(auth, email, password),
+      () => signInWithEmailAndPassword(auth, email, password),
       'Has iniciado sesión correctamente.',
       '/dashboard'
     );
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string) => {
+    const isNicknameUnique = await checkNicknameUniqueness(name);
+    if (!isNicknameUnique) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Este apodo ya está en uso. Por favor, elige otro.' });
+        return;
+    }
+
     await handleAuthAction(
-      createUserWithEmailAndPassword(auth, email, password),
+      async () => {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+        await updateProfile(firebaseUser, { displayName: name });
+        await setDoc(doc(db, "users", firebaseUser.uid), { name, email });
+      },
       'Cuenta creada correctamente. ¡Bienvenido!',
       '/dashboard'
     );
@@ -88,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     await handleAuthAction(
-      signInWithPopup(auth, provider),
+      () => signInWithPopup(auth, provider),
       'Has iniciado sesión con Google correctamente.',
       '/dashboard'
     );
@@ -96,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await handleAuthAction(
-      signOut(auth),
+      () => signOut(auth),
       'Has cerrado la sesión.',
       '/'
     );

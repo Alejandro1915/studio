@@ -51,7 +51,7 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
             {allPlayers.map((player) => (
               <TableRow key={player.name} className={player.isCurrentUser ? 'bg-primary/20' : ''}>
                 <TableCell className="font-medium text-2xl text-center">{player.rank}</TableCell>
-                <TableCell className="font-bold">{player.name}</TableCell>
+                <TableCell className="font-bold">{player.isCurrentUser ? user?.name : player.name}</TableCell>
                 <TableCell className="text-right text-lg font-mono">{player.score}</TableCell>
               </TableRow>
             ))}
