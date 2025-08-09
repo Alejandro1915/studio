@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Trophy, Home } from 'lucide-react';
 
-const mockPlayers = [
-  { rank: 2, name: 'OtakuSlayer', score: 1250, isCurrentUser: false },
-  { rank: 3, name: 'WeebLord', score: 1100, isCurrentUser: false },
-  { rank: 4, name: 'SenpaiSays', score: 980, isCurrentUser: false },
+// Mock data for other players
+const otherPlayers = [
+  { name: 'OtakuSlayer', score: 1250 },
+  { name: 'WeebLord', score: 1100 },
+  { name: 'SenpaiSays', score: 980 },
 ];
 
 export default function MatchSummary({ gameId }: { gameId: string }) {
@@ -19,14 +20,23 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
   const finalScore = searchParams.get('score');
   const { user } = useAuth();
   
-  const currentUserData = {
-      rank: 1,
-      name: user?.name || 'Tú',
+  // Combine current user with mock players
+  const allPlayers = [
+    ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
+  ];
+
+  if (user) {
+    allPlayers.push({
+      name: user.name || 'Tú',
       score: parseInt(finalScore || '0'),
       isCurrentUser: true,
-  };
-
-  const allPlayers = [...mockPlayers, currentUserData].sort((a,b) => b.score - a.score).map((p, i) => ({...p, rank: i + 1}));
+    });
+  }
+  
+  // Sort by score and assign rank
+  const rankedPlayers = allPlayers
+    .sort((a,b) => b.score - a.score)
+    .map((p, i) => ({...p, rank: i + 1}));
 
 
   return (
@@ -48,10 +58,10 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allPlayers.map((player) => (
+            {rankedPlayers.map((player) => (
               <TableRow key={player.name} className={player.isCurrentUser ? 'bg-primary/20' : ''}>
                 <TableCell className="font-medium text-2xl text-center">{player.rank}</TableCell>
-                <TableCell className="font-bold">{player.isCurrentUser ? user?.name : player.name}</TableCell>
+                <TableCell className="font-bold">{player.name}</TableCell>
                 <TableCell className="text-right text-lg font-mono">{player.score}</TableCell>
               </TableRow>
             ))}
