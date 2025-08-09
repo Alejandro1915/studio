@@ -15,6 +15,17 @@ import type { Question } from '../admin/QuestionManagement';
 
 const TIME_PER_QUESTION = 15; // segundos
 
+// Helper function to shuffle an array
+const shuffleArray = (array: any[]) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
+
 export default function QuizArea({ gameId }: { gameId: string }) {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -31,7 +42,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
         const querySnapshot = await getDocs(collection(db, 'questions'));
         const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
         // Shuffle questions
-        setQuestions(questionsData.sort(() => Math.random() - 0.5));
+        setQuestions(shuffleArray(questionsData));
       } catch(e) {
         console.error("Failed to fetch questions", e)
       } finally {
