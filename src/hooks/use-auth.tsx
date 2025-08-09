@@ -2,18 +2,32 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import {
+  onAuthStateChanged,
+  signOut,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from './use-toast';
 
 interface User {
-  name: string;
-  email: string;
-  photoURL?: string;
+  uid: string;
+  name: string | null;
+  email: string | null;
+  photoURL: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, name?: string) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,14 +37,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate checking for a logged-in user
-    const storedUser = localStorage.getItem('animuizu-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const { uid, displayName, email, photoURL } = firebaseUser;
+        setUser({ uid, name: displayName, email, photoURL });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -39,20 +59,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, loading, pathname, router]);
 
-  const login = (email: string, name = 'Fan del Anime') => {
-    const newUser: User = { email, name, photoURL: `https://i.pravatar.cc/150?u=${email}` };
-    setUser(newUser);
-    localStorage.setItem('animuizu-user', JSON.stringify(newUser));
-    router.push('/dashboard');
+  const handleAuthAction = async (action: Promise<any>, successMessage: string, successPath: string) => {
+    try {
+      await action;
+      toast({ title: 'Éxito', description: successMessage });
+      router.push(successPath);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('animuizu-user');
-    router.push('/');
+  const login = async (email: string, password: string) => {
+    await handleAuthAction(
+      signInWithEmailAndPassword(auth, email, password),
+      'Has iniciado sesión correctamente.',
+      '/dashboard'
+    );
   };
 
-  const value = { user, loading, login, logout };
+  const signup = async (email: string, password: string) => {
+    await handleAuthAction(
+      createUserWithEmailAndPassword(auth, email, password),
+      'Cuenta creada correctamente. ¡Bienvenido!',
+      '/dashboard'
+    );
+  }
+
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await handleAuthAction(
+      signInWithPopup(auth, provider),
+      'Has iniciado sesión con Google correctamente.',
+      '/dashboard'
+    );
+  };
+
+  const logout = async () => {
+    await handleAuthAction(
+      signOut(auth),
+      'Has cerrado la sesión.',
+      '/'
+    );
+  };
+
+  const value = { user, loading, login, logout, loginWithGoogle, signup };
 
   return (
     <AuthContext.Provider value={value}>

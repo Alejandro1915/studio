@@ -15,7 +15,7 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -24,14 +24,12 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Simulate login
-    login(values.email);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    await login(values.email, values.password);
   }
   
-  function onGoogleSignIn() {
-    // Simulate Google sign-in
-    login('user@google.com', 'Usuario de Google');
+  async function onGoogleSignIn() {
+    await loginWithGoogle();
   }
 
   return (
@@ -63,15 +61,15 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          Iniciar Sesión con Correo
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión con Correo'}
         </Button>
       </form>
       <div className="relative my-4">
         <Separator />
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">O</span>
       </div>
-      <Button variant="outline" className="w-full" onClick={onGoogleSignIn}>
+      <Button variant="outline" className="w-full" onClick={onGoogleSignIn} disabled={form.formState.isSubmitting}>
         <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.6 1.6-4.8 1.6-4.53 0-8.32-3.7-8.32-8.29s3.79-8.29 8.32-8.29c2.45 0 4.13.93 5.33 2.05l2.42-2.42C18.4 1.48 15.98.5 12.48.5 5.8 0 0 5.6 0 12.3s5.8 12.3 12.48 12.3c3.2 0 5.7-1.1 7.6-3.05 1.98-1.98 2.58-4.7 2.58-7.98 0-.62-.05-1.14-.15-1.68z"></path></svg>
         Iniciar sesión con Google
       </Button>

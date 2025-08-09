@@ -36,15 +36,15 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.photoURL} alt={user.name ?? ''} />
-            <AvatarFallback>{user.name?.[0].toUpperCase()}</AvatarFallback>
+            {user.photoURL && <AvatarImage src={user.photoURL} alt={user.name ?? ''} />}
+            <AvatarFallback>{user.name?.[0].toUpperCase() ?? user.email?.[0].toUpperCase()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{user.name ?? 'Usuario'}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
@@ -58,7 +58,7 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
+        <DropdownMenuItem onClick={() => logout()}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>
