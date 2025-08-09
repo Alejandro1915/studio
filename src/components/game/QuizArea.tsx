@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, Loader } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question } from '../admin/QuestionManagement';
 
@@ -23,6 +23,50 @@ const shuffleArray = (array: any[]) => {
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
+};
+
+const seedQuestions = async () => {
+    const questionsRef = collection(db, 'questions');
+    const snapshot = await getDocs(questionsRef);
+    if (snapshot.empty) {
+        console.log("No questions found, seeding database...");
+        const questionsToSeed: Omit<Question, 'id'>[] = [
+            {
+                question: 'En "Naruto", ¿quién es el maestro del Equipo 7?',
+                options: ['Jiraiya', 'Kakashi Hatake', 'Might Guy', 'Iruka Umino'],
+                answer: 'Kakashi Hatake',
+                image: 'https://placehold.co/600x300.png',
+            },
+            {
+                question: '¿Cuál es el nombre del titán que posee Eren Jaeger en "Attack on Titan"?',
+                options: ['Titán Colosal', 'Titán Acorazado', 'Titán de Ataque', 'Titán Bestia'],
+                answer: 'Titán de Ataque',
+                image: 'https://placehold.co/600x300.png',
+            },
+            {
+                question: 'En "Dragon Ball Z", ¿quién es el primer enemigo que alcanza la forma de Super Saiyan?',
+                options: ['Vegeta', 'Goku', 'Freezer', 'Broly'],
+                answer: 'Goku',
+                image: 'https://placehold.co/600x300.png',
+            },
+            {
+                question: '¿Qué objeto busca el protagonista en "One Piece" para convertirse en el Rey de los Piratas?',
+                options: ['El All Blue', 'El One Piece', 'El Poneglyph', 'La Fruta del Diablo'],
+                answer: 'El One Piece',
+                image: 'https://placehold.co/600x300.png',
+            },
+            {
+                question: 'En "Demon Slayer", ¿cuál es el nombre de la hermana de Tanjiro Kamado?',
+                options: ['Kanao Tsuyuri', 'Shinobu Kocho', 'Nezuko Kamado', 'Mitsuri Kanroji'],
+                answer: 'Nezuko Kamado',
+                image: 'https://placehold.co/600x300.png',
+            }
+        ];
+        
+        for (const q of questionsToSeed) {
+            await addDoc(questionsRef, q);
+        }
+    }
 };
 
 
@@ -39,6 +83,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
+        await seedQuestions();
         const querySnapshot = await getDocs(collection(db, 'questions'));
         const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
         // Shuffle questions
