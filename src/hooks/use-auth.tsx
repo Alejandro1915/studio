@@ -14,13 +14,14 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
 
 interface User {
   uid: string;
   name: string | null;
   email: string | null;
   photoURL: string | null;
+  role?: 'admin' | 'user';
 }
 
 interface AuthContextType {
@@ -53,13 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
-          const { name, email, photoURL } = userDoc.data();
-          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL });
+          const { name, email, photoURL, role } = userDoc.data();
+          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL, role });
         } else {
           // This case handles Google sign-in for the first time
            const { uid, displayName, email, photoURL } = firebaseUser;
-           const newUser = { uid, name: displayName, email, photoURL };
-           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL });
+           const newUser = { uid, name: displayName, email, photoURL, role: 'user' as const };
+           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role: 'user' });
            setUser(newUser);
         }
       } else {
@@ -72,12 +73,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/signup' && pathname !== '/') {
+    if (loading) return;
+
+    const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/';
+    const isAdminPage = pathname.startsWith('/admin');
+
+    if (!user && !isAuthPage) {
       router.push('/login');
     }
-    if(!loading && user && (pathname === '/login' || pathname === '/signup')){
+    if(user && isAuthPage){
         router.push('/dashboard');
     }
+    if(user && isAdminPage && user.role !== 'admin'){
+        toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permiso para ver esta página.' });
+        router.push('/dashboard');
+    }
+
   }, [user, loading, pathname, router]);
 
   const handleAuthAction = async (action: () => Promise<any>, successMessage: string, successPath: string) => {
@@ -111,7 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         await updateProfile(firebaseUser, { displayName: name });
-        await setDoc(doc(db, "users", firebaseUser.uid), { name, email });
+        
+        // Assign admin role to the first user
+        const usersCollection = collection(db, "users");
+        const snapshot = await getCountFromServer(usersCollection);
+        const userCount = snapshot.data().count;
+        const role = userCount === 0 ? 'admin' : 'user';
+
+        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role });
+
       },
       'Cuenta creada correctamente. ¡Bienvenido!',
       '/dashboard'

@@ -6,51 +6,45 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-
-const mockQuestions = [
-  {
-    question: "En 'Naruto', ¿cuál es el nombre de la bestia con cola sellada dentro del personaje principal?",
-    image: 'https://placehold.co/600x300.png',
-    "data-ai-hint": "anime character",
-    options: ['Shukaku', 'Kurama', 'Gyuki', 'Matatabi'],
-    answer: 'Kurama',
-  },
-  {
-    question: "¿Quién es el 'Símbolo de la Paz' en 'My Hero Academia'?",
-    options: ['Endeavor', 'Hawks', 'All Might', 'Best Jeanist'],
-    answer: 'All Might',
-  },
-  {
-    question: "¿Cuál es el objetivo principal de los exploradores en 'Attack on Titan'?",
-    image: 'https://placehold.co/600x300.png',
-    "data-ai-hint": "anime battle",
-    options: ['Encontrar un nuevo hogar', 'Matar a todos los titanes', 'Explorar el mundo más allá de las murallas', 'Derrocar al gobierno'],
-    answer: 'Explorar el mundo más allá de las murallas',
-  },
-    {
-    question: "En 'Demon Slayer', ¿cómo se llama la hermana de Tanjiro?",
-    options: ['Nezuko', 'Kanao', 'Shinobu', 'Mitsuri'],
-    answer: 'Nezuko',
-  },
-];
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Question } from '../admin/QuestionManagement';
 
 const TIME_PER_QUESTION = 15; // segundos
 
 export default function QuizArea({ gameId }: { gameId: string }) {
   const router = useRouter();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'questions'));
+        const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+        // Shuffle questions
+        setQuestions(questionsData.sort(() => Math.random() - 0.5));
+      } catch(e) {
+        console.error("Failed to fetch questions", e)
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
+
+  const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
-    if (isAnswered) return;
+    if (isAnswered || loading) return;
     if (timeLeft === 0) {
       setIsAnswered(true);
       setTimeout(nextQuestion, 2000);
@@ -60,7 +54,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, isAnswered]);
+  }, [timeLeft, isAnswered, loading]);
 
   const handleAnswer = (answer: string) => {
     if (isAnswered) return;
@@ -76,7 +70,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   };
 
   const nextQuestion = () => {
-    if (currentQuestionIndex < mockQuestions.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setTimeLeft(TIME_PER_QUESTION);
       setSelectedAnswer(null);
@@ -106,12 +100,35 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     if (option === selectedAnswer && option !== currentQuestion.answer) return <XCircle />;
     return null;
   }
+  
+  if (loading) {
+      return (
+          <div className="flex flex-col items-center justify-center gap-4 text-xl">
+              <Loader className="w-12 h-12 animate-spin text-primary" />
+              Cargando preguntas...
+          </div>
+      )
+  }
+  
+  if(!currentQuestion) {
+      return (
+          <Card className="w-full max-w-4xl shadow-2xl shadow-primary/10">
+              <CardHeader>
+                <CardTitle>No hay preguntas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>No se encontraron preguntas. Un administrador debe añadir preguntas para poder jugar.</p>
+                <Button onClick={() => router.push('/dashboard')} className="mt-4">Volver al Lobby</Button>
+              </CardContent>
+          </Card>
+      )
+  }
 
   return (
     <Card className="w-full max-w-4xl shadow-2xl shadow-primary/10">
       <CardHeader>
         <div className="flex justify-between items-center mb-4">
-          <CardTitle className="font-headline text-xl text-primary">Pregunta {currentQuestionIndex + 1}/{mockQuestions.length}</CardTitle>
+          <CardTitle className="font-headline text-xl text-primary">Pregunta {currentQuestionIndex + 1}/{questions.length}</CardTitle>
           <div className="text-2xl font-bold text-accent">{score} pts</div>
         </div>
         <Progress value={(timeLeft / TIME_PER_QUESTION) * 100} className="w-full h-2" />
@@ -132,7 +149,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
             >
                 {currentQuestion.image && (
                     <div className="mb-6 rounded-lg overflow-hidden aspect-video relative">
-                        <Image src={currentQuestion.image} alt={currentQuestion.question} layout="fill" objectFit="cover" data-ai-hint={currentQuestion["data-ai-hint"]} />
+                        <Image src={currentQuestion.image} alt={currentQuestion.question} layout="fill" objectFit="cover" data-ai-hint="anime quiz" />
                     </div>
                 )}
                 <h2 className="text-2xl md:text-3xl font-bold mb-8 min-h-[4rem]">{currentQuestion.question}</h2>
