@@ -11,6 +11,7 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
   updateProfile,
+  AuthErrorCodes,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
@@ -111,8 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({ title: 'Éxito', description: successMessage });
       router.push(successPath);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-      throw error;
+        if (error.code === AuthErrorCodes.EMAIL_EXISTS) {
+            toast({ variant: 'destructive', title: 'Error de Registro', description: 'El correo electrónico ya está en uso. Por favor, intenta iniciar sesión.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        }
+        throw error;
     }
   };
 
