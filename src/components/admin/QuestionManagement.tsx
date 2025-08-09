@@ -220,8 +220,8 @@ export default function QuestionManagement() {
             <p>Cargando preguntas...</p>
         ) : (
             <div className="space-y-4">
-                {questions.map(q => (
-                    <div key={q.id} className="border p-4 rounded-lg flex justify-between items-center">
+                {questions.map((q, index) => (
+                    <div key={`${q.id}-${index}`} className="border p-4 rounded-lg flex justify-between items-center">
                         <p className="font-medium">{q.question}</p>
                         <div className="flex gap-2">
                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(q)}>
