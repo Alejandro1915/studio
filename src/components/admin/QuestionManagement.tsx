@@ -8,14 +8,12 @@ import { Button } from '@/components/ui/button'
 import { PlusCircle, Edit, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '../ui/input'
-import { Label } from '../ui/label'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group'
-import { cn } from '@/lib/utils'
 
 export interface Question {
   id?: string;
@@ -28,7 +26,9 @@ export interface Question {
 const questionSchema = z.object({
   id: z.string().optional(),
   question: z.string().min(10, "La pregunta debe tener al menos 10 caracteres."),
-  options: z.array(z.string().min(1, "La opción no puede estar vacía.")).min(4, "Debe haber 4 opciones.").max(4, "Solo puede haber 4 opciones."),
+  options: z.array(
+    z.string().min(1, "La opción no puede estar vacía.")
+  ).min(4, "Debe haber 4 opciones.").max(4, "Solo puede haber 4 opciones."),
   answer: z.string().min(1, "Debes seleccionar una respuesta correcta."),
   image: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
 }).refine(data => data.options.includes(data.answer), {
@@ -47,7 +47,6 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             answer: '',
             image: ''
         },
-        mode: 'onChange' // Use onChange for better feedback
     });
 
     const { fields } = useFieldArray({
@@ -55,14 +54,23 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
         name: "options"
     });
 
+    const watchedOptions = form.watch('options');
+
     const onSubmit = async (data: z.infer<typeof questionSchema>) => {
         try {
+            const dataToSave = {
+              question: data.question,
+              options: data.options,
+              answer: data.answer,
+              image: data.image,
+            };
+
             if (data.id) {
                 const questionRef = doc(db, 'questions', data.id);
-                await updateDoc(questionRef, data);
+                await updateDoc(questionRef, dataToSave);
                 toast({ title: 'Éxito', description: 'Pregunta actualizada correctamente.' });
             } else {
-                await addDoc(collection(db, 'questions'), data);
+                await addDoc(collection(db, 'questions'), dataToSave);
                 toast({ title: 'Éxito', description: 'Pregunta creada correctamente.' });
             }
             onSave();
@@ -72,9 +80,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             console.error(error);
         }
     };
-
-    const currentAnswer = form.watch("answer");
-
+    
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -90,55 +96,43 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                         </FormItem>
                     )} />
                     
-                    <FormField
+                    <Controller
                         control={form.control}
                         name="answer"
                         render={({ field }) => (
-                            <FormItem className="space-y-3">
+                            <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-3">
                                 <FormLabel>Opciones (marca la correcta)</FormLabel>
-                                <FormControl>
-                                    <RadioGroup
-                                        onValueChange={field.onChange}
-                                        defaultValue={field.value}
-                                        className="flex flex-col space-y-2"
-                                    >
-                                        {fields.map((item, index) => (
-                                            <FormField
-                                                key={item.id}
-                                                control={form.control}
-                                                name={`options.${index}`}
-                                                render={({ field: optionField }) => (
-                                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                                        <FormControl>
-                                                            <div className="flex items-center gap-2 w-full">
-                                                                <RadioGroupItem 
-                                                                    value={optionField.value} 
-                                                                    id={`option-${index}`} 
-                                                                    disabled={!optionField.value}
-                                                                />
-                                                                <Input 
-                                                                    {...optionField} 
-                                                                    placeholder={`Opción ${index + 1}`} 
-                                                                    onChange={(e) => {
-                                                                        const oldValue = optionField.value;
-                                                                        const newValue = e.target.value;
-                                                                        optionField.onChange(newValue);
-                                                                        // If this was the selected answer, update the answer value
-                                                                        if (currentAnswer === oldValue) {
-                                                                            form.setValue("answer", newValue, { shouldValidate: true });
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
+                                {fields.map((item, index) => (
+                                    <FormField
+                                        key={item.id}
+                                        control={form.control}
+                                        name={`options.${index}`}
+                                        render={({ field: optionField }) => (
+                                          <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
+                                              <FormControl>
+                                                  <RadioGroupItem 
+                                                      value={watchedOptions[index]}
+                                                      id={`option-radio-${index}`}
+                                                      disabled={!watchedOptions[index]}
+                                                  />
+                                              </FormControl>
+                                              <div className="w-full">
+                                                <FormLabel className="sr-only" htmlFor={`option-input-${index}`}>
+                                                  Opción {index + 1}
+                                                </FormLabel>
+                                                <Input 
+                                                    {...optionField}
+                                                    id={`option-input-${index}`}
+                                                    placeholder={`Opción ${index + 1}`}
+                                                />
+                                                <FormMessage className="mt-2" />
+                                              </div>
+                                          </FormItem>
+                                        )}
+                                    />
+                                ))}
+                                 <FormMessage>{form.formState.errors.answer?.message}</FormMessage>
+                            </RadioGroup>
                         )}
                     />
 
@@ -150,7 +144,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                         </FormItem>
                     )} />
 
-                    <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isValid}>
+                    <Button type="submit" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
                     </Button>
                 </form>
