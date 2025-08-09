@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Trophy, Loader2 } from 'lucide-react';
+import { Trophy, Loader2, Medal } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 interface User {
@@ -15,6 +15,14 @@ interface User {
   photoURL?: string;
   score: number;
 }
+
+const RankIcon = ({ rank }: { rank: number }) => {
+    if (rank === 1) return <Medal className="w-7 h-7 text-yellow-400" />;
+    if (rank === 2) return <Medal className="w-7 h-7 text-gray-400" />;
+    if (rank === 3) return <Medal className="w-7 h-7 text-orange-500" />;
+    return <span className="text-lg w-7 text-center">{rank}</span>;
+}
+
 
 export default function Leaderboard() {
   const [users, setUsers] = useState<User[]>([]);
@@ -70,21 +78,20 @@ export default function Leaderboard() {
           </TableHeader>
           <TableBody>
             {users.map((user, index) => (
-              <TableRow key={user.id} className={currentUser?.uid === user.id ? 'bg-primary/20' : ''}>
-                <TableCell className="font-medium text-2xl text-center flex items-center justify-center gap-2">
-                    {index + 1}
-                    {index === 0 && <Trophy className="w-6 h-6 text-yellow-400" />}
-                    {index === 1 && <Trophy className="w-6 h-6 text-gray-400" />}
-                    {index === 2 && <Trophy className="w-6 h-6 text-orange-400" />}
+              <TableRow key={user.id} className={currentUser?.uid === user.id ? 'bg-primary/20 hover:bg-primary/30' : ''}>
+                <TableCell className="font-bold text-xl text-center">
+                    <div className='flex items-center justify-center'>
+                        <RankIcon rank={index + 1} />
+                    </div>
                 </TableCell>
-                <TableCell className="flex items-center gap-4">
-                  <Avatar>
+                <TableCell className="flex items-center gap-4 py-4">
+                  <Avatar className='h-12 w-12'>
                     <AvatarImage src={user.photoURL} />
                     <AvatarFallback>{user.name?.[0].toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <span className='font-bold'>{user.name}</span>
+                  <span className='font-bold text-lg'>{user.name}</span>
                 </TableCell>
-                <TableCell className="text-right text-lg font-mono">{user.score.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-xl font-bold font-mono">{user.score.toLocaleString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>
