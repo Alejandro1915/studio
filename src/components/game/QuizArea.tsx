@@ -12,32 +12,32 @@ import { cn } from '@/lib/utils';
 
 const mockQuestions = [
   {
-    question: "In 'Naruto', what is the name of the tailed beast sealed inside the main character?",
+    question: "En 'Naruto', ¿cuál es el nombre de la bestia con cola sellada dentro del personaje principal?",
     image: 'https://placehold.co/600x300.png',
     "data-ai-hint": "anime character",
     options: ['Shukaku', 'Kurama', 'Gyuki', 'Matatabi'],
     answer: 'Kurama',
   },
   {
-    question: "Who is the 'Symbol of Peace' in 'My Hero Academia'?",
+    question: "¿Quién es el 'Símbolo de la Paz' en 'My Hero Academia'?",
     options: ['Endeavor', 'Hawks', 'All Might', 'Best Jeanist'],
     answer: 'All Might',
   },
   {
-    question: "What is the primary goal of the scouts in 'Attack on Titan'?",
+    question: "¿Cuál es el objetivo principal de los exploradores en 'Attack on Titan'?",
     image: 'https://placehold.co/600x300.png',
     "data-ai-hint": "anime battle",
-    options: ['To find a new home', 'To kill all titans', 'To explore the world beyond the walls', 'To overthrow the government'],
-    answer: 'To explore the world beyond the walls',
+    options: ['Encontrar un nuevo hogar', 'Matar a todos los titanes', 'Explorar el mundo más allá de las murallas', 'Derrocar al gobierno'],
+    answer: 'Explorar el mundo más allá de las murallas',
   },
     {
-    question: "In 'Demon Slayer', what is the name of Tanjiro's sister?",
+    question: "En 'Demon Slayer', ¿cómo se llama la hermana de Tanjiro?",
     options: ['Nezuko', 'Kanao', 'Shinobu', 'Mitsuri'],
     answer: 'Nezuko',
   },
 ];
 
-const TIME_PER_QUESTION = 15; // seconds
+const TIME_PER_QUESTION = 15; // segundos
 
 export default function QuizArea({ gameId }: { gameId: string }) {
   const router = useRouter();
@@ -111,13 +111,13 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     <Card className="w-full max-w-4xl shadow-2xl shadow-primary/10">
       <CardHeader>
         <div className="flex justify-between items-center mb-4">
-          <CardTitle className="font-headline text-xl text-primary">Question {currentQuestionIndex + 1}/{mockQuestions.length}</CardTitle>
+          <CardTitle className="font-headline text-xl text-primary">Pregunta {currentQuestionIndex + 1}/{mockQuestions.length}</CardTitle>
           <div className="text-2xl font-bold text-accent">{score} pts</div>
         </div>
         <Progress value={(timeLeft / TIME_PER_QUESTION) * 100} className="w-full h-2" />
         <div className="flex items-center justify-center text-lg text-muted-foreground mt-2">
             <Clock className="w-5 h-5 mr-2" />
-            Time left: {timeLeft}s
+            Tiempo restante: {timeLeft}s
         </div>
       </CardHeader>
       <CardContent>

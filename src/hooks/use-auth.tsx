@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, loading, pathname, router]);
 
-  const login = (email: string, name = 'Anime Fan') => {
+  const login = (email: string, name = 'Fan del Anime') => {
     const newUser: User = { email, name, photoURL: `https://i.pravatar.cc/150?u=${email}` };
     setUser(newUser);
     localStorage.setItem('animuizu-user', JSON.stringify(newUser));
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth debe ser utilizado dentro de un AuthProvider');
   }
   return context;
 }

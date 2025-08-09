@@ -46,12 +46,12 @@ export default function Home() {
           variants={itemVariants}
           className="max-w-2xl mx-auto my-4 text-lg md:text-xl text-muted-foreground"
         >
-          The ultimate real-time anime trivia battle. Challenge your friends and climb the ranks. Do you have what it takes to be an Otaku master?
+          La batalla de trivia de anime en tiempo real definitiva. Desafía a tus amigos y sube en la clasificación. ¿Tienes lo que se necesita para ser un maestro Otaku?
         </motion.p>
         <motion.div variants={itemVariants}>
           <Button asChild size="lg" className="mt-8 rounded-full text-lg px-8 py-6 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-shadow duration-300">
             <Link href="/dashboard">
-              Get Started
+              Comenzar
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>

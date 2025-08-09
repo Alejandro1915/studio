@@ -6,8 +6,8 @@ import Header from '@/components/layout/Header';
 import { AuthProvider } from '@/hooks/use-auth';
 
 export const metadata: Metadata = {
-  title: 'Animuizu - Anime Quiz Battle',
-  description: 'A real-time anime trivia game built with Firebase and Next.js',
+  title: 'Animuizu - Batalla de Quiz de Anime',
+  description: 'Un juego de trivia de anime en tiempo real creado con Firebase y Next.js',
 };
 
 export default function RootLayout({
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="es" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

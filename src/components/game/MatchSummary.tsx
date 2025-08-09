@@ -21,7 +21,7 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
   
   const currentUserData = {
       rank: 1,
-      name: user?.name || 'You',
+      name: user?.name || 'Tú',
       score: parseInt(finalScore || '0'),
       isCurrentUser: true,
   };
@@ -35,16 +35,16 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
         <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
             <Trophy className="w-12 h-12 text-primary" />
         </div>
-        <CardTitle className="text-4xl font-headline text-primary">Match Over!</CardTitle>
-        <CardDescription className="text-lg">Here are the final results for game #{gameId}</CardDescription>
+        <CardTitle className="text-4xl font-headline text-primary">¡Partida Terminada!</CardTitle>
+        <CardDescription className="text-lg">Estos son los resultados finales de la partida #{gameId}</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px] text-center">Rank</TableHead>
-              <TableHead>Player</TableHead>
-              <TableHead className="text-right">Score</TableHead>
+              <TableHead className="w-[80px] text-center">Puesto</TableHead>
+              <TableHead>Jugador</TableHead>
+              <TableHead className="text-right">Puntaje</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -62,7 +62,7 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
         <Button asChild className="w-full" size="lg">
           <Link href="/dashboard">
             <Home className="mr-2 h-5 w-5" />
-            Back to Lobby
+            Volver al Lobby
           </Link>
         </Button>
       </CardFooter>

@@ -7,26 +7,26 @@ import { Dices, Users, Swords } from "lucide-react";
 
 const gameModes = [
     {
-        title: "Random Match",
-        description: "Jump into a game with other players from around the world.",
+        title: "Partida Aleatoria",
+        description: "Entra en una partida con otros jugadores de todo el mundo.",
         icon: <Dices className="w-8 h-8 text-primary" />,
         href: "/game/123",
-        cta: "Join Match"
+        cta: "Unirse a Partida"
     },
     {
-        title: "Challenge a Friend",
-        description: "Create a private room and invite your friends for a duel.",
+        title: "Desafiar a un Amigo",
+        description: "Crea una sala privada e invita a tus amigos a un duelo.",
         icon: <Swords className="w-8 h-8 text-accent" />,
         href: "#",
-        cta: "Create Room",
+        cta: "Crear Sala",
         disabled: true,
     },
     {
-        title: "Global Ranking",
-        description: "See how you stack up against the best players.",
+        title: "Clasificación Global",
+        description: "Mira cómo te comparas con los mejores jugadores.",
         icon: <Users className="w-8 h-8 text-yellow-400" />,
         href: "#",
-        cta: "View Rankings",
+        cta: "Ver Clasificaciones",
         disabled: true,
     }
 ]
