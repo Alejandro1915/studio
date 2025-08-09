@@ -41,6 +41,18 @@ const checkNicknameUniqueness = async (name: string): Promise<boolean> => {
     return querySnapshot.empty;
 }
 
+const getUserRole = async (email: string | null): Promise<'admin' | 'user'> => {
+    const usersCollection = collection(db, "users");
+    const snapshot = await getCountFromServer(usersCollection);
+    const userCount = snapshot.data().count;
+
+    if (userCount === 0 || (email && email.endsWith('@mast.otak.co'))) {
+        return 'admin';
+    }
+    return 'user';
+}
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,8 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // This case handles Google sign-in for the first time
            const { uid, displayName, email, photoURL } = firebaseUser;
-           const newUser = { uid, name: displayName, email, photoURL, role: 'user' as const };
-           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role: 'user' });
+           const role = await getUserRole(email);
+           const newUser = { uid, name: displayName, email, photoURL, role };
+           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role });
            setUser(newUser);
         }
       } else {
@@ -123,14 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const firebaseUser = userCredential.user;
         await updateProfile(firebaseUser, { displayName: name });
         
-        const usersCollection = collection(db, "users");
-        const snapshot = await getCountFromServer(usersCollection);
-        const userCount = snapshot.data().count;
-
-        let role: 'admin' | 'user' = 'user';
-        if (userCount === 0 || email.endsWith('@mast.otak.co')) {
-            role = 'admin';
-        }
+        const role = await getUserRole(email);
 
         await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role });
 
