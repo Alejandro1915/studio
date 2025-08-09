@@ -47,7 +47,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             answer: '',
             image: ''
         },
-        mode: 'onChange' // Important for button state to update
+        mode: 'onChange'
     });
 
     const watchedOptions = form.watch('options');
@@ -227,7 +227,7 @@ export default function QuestionManagement() {
                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(q)}>
                                 <Edit className="w-4 h-4" />
                            </Button>
-                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id!)} >
+                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id!)}>
                                 <Trash2 className="w-4 h-4 text-destructive" />
                            </Button>
                         </div>
