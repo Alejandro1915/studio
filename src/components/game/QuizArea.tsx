@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +53,14 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   }, []);
 
   const currentQuestion = questions[currentQuestionIndex];
+  
+  const shuffledOptions = useMemo(() => {
+    if (currentQuestion) {
+      return shuffleArray(currentQuestion.options);
+    }
+    return [];
+  }, [currentQuestion]);
+
 
   useEffect(() => {
     if (isAnswered || loading) return;
@@ -165,7 +173,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
                 )}
                 <h2 className="text-2xl md:text-3xl font-bold mb-8 min-h-[4rem]">{currentQuestion.question}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentQuestion.options.map((option) => (
+                    {shuffledOptions.map((option) => (
                         <Button
                             key={option}
                             onClick={() => handleAnswer(option)}
