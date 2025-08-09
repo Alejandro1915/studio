@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { PlusCircle, Edit, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '../ui/input'
-import { useForm, useFieldArray, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form'
@@ -47,11 +47,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             answer: '',
             image: ''
         },
-    });
-
-    const { fields } = useFieldArray({
-        control: form.control,
-        name: "options"
+        mode: 'onChange' // Important for button state to update
     });
 
     const watchedOptions = form.watch('options');
@@ -96,43 +92,50 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                         </FormItem>
                     )} />
                     
-                    <Controller
+                    <FormField
                         control={form.control}
                         name="answer"
                         render={({ field }) => (
-                            <RadioGroup onValueChange={field.onChange} value={field.value} className="space-y-3">
+                            <FormItem className="space-y-3">
                                 <FormLabel>Opciones (marca la correcta)</FormLabel>
-                                {fields.map((item, index) => (
-                                    <FormField
-                                        key={item.id}
-                                        control={form.control}
-                                        name={`options.${index}`}
-                                        render={({ field: optionField }) => (
-                                          <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
-                                              <FormControl>
-                                                  <RadioGroupItem 
-                                                      value={watchedOptions[index]}
-                                                      id={`option-radio-${index}`}
-                                                      disabled={!watchedOptions[index]}
-                                                  />
-                                              </FormControl>
-                                              <div className="w-full">
-                                                <FormLabel className="sr-only" htmlFor={`option-input-${index}`}>
-                                                  Opción {index + 1}
-                                                </FormLabel>
-                                                <Input 
-                                                    {...optionField}
-                                                    id={`option-input-${index}`}
-                                                    placeholder={`Opción ${index + 1}`}
-                                                />
-                                                <FormMessage className="mt-2" />
-                                              </div>
-                                          </FormItem>
-                                        )}
-                                    />
-                                ))}
-                                 <FormMessage>{form.formState.errors.answer?.message}</FormMessage>
-                            </RadioGroup>
+                                <FormControl>
+                                    <RadioGroup
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                        className="space-y-2"
+                                    >
+                                        {[0, 1, 2, 3].map((index) => (
+                                            <FormField
+                                                key={index}
+                                                control={form.control}
+                                                name={`options.${index}`}
+                                                render={({ field: optionField }) => (
+                                                    <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-3">
+                                                         <FormControl>
+                                                            <RadioGroupItem 
+                                                                value={watchedOptions?.[index] || `option-${index}`}
+                                                                disabled={!watchedOptions?.[index]}
+                                                            />
+                                                        </FormControl>
+                                                        <div className="w-full">
+                                                            <FormLabel className="sr-only" htmlFor={`option-input-${index}`}>
+                                                                Opción {index + 1}
+                                                            </FormLabel>
+                                                            <Input 
+                                                                {...optionField}
+                                                                id={`option-input-${index}`}
+                                                                placeholder={`Opción ${index + 1}`}
+                                                            />
+                                                            <FormMessage className="mt-2" />
+                                                        </div>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
 
@@ -144,7 +147,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                         </FormItem>
                     )} />
 
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
+                    <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
                     </Button>
                 </form>
