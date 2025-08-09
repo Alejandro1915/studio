@@ -22,6 +22,7 @@ interface User {
   email: string | null;
   photoURL: string | null;
   role?: 'admin' | 'user';
+  score?: number;
 }
 
 interface AuthContextType {
@@ -66,14 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
-          const { name, email, photoURL, role } = userDoc.data();
-          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL, role });
+          const { name, email, photoURL, role, score } = userDoc.data();
+          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL, role, score });
         } else {
           // This case handles Google sign-in for the first time
            const { uid, displayName, email, photoURL } = firebaseUser;
            const role = await getUserRole(email);
-           const newUser = { uid, name: displayName, email, photoURL, role };
-           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role });
+           const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0 };
+           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0 });
            setUser(newUser);
         }
       } else {
@@ -138,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const role = await getUserRole(email);
 
-        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role });
+        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role, score: 0 });
 
       },
       'Cuenta creada correctamente. ¡Bienvenido!',

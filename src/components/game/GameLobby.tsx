@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dices, Users, Swords } from "lucide-react";
+import { Dices, Users, Swords, Trophy } from "lucide-react";
 
 const gameModes = [
     {
@@ -24,10 +24,10 @@ const gameModes = [
     {
         title: "Clasificación Global",
         description: "Mira cómo te comparas con los mejores jugadores.",
-        icon: <Users className="w-8 h-8 text-yellow-400" />,
-        href: "#",
+        icon: <Trophy className="w-8 h-8 text-yellow-400" />,
+        href: "/leaderboard",
         cta: "Ver Clasificaciones",
-        disabled: true,
+        disabled: false,
     }
 ]
 

@@ -7,6 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Trophy, Home } from 'lucide-react';
+import { useEffect } from 'react';
+import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data for other players
 const otherPlayers = [
@@ -17,10 +21,36 @@ const otherPlayers = [
 
 export default function MatchSummary({ gameId }: { gameId: string }) {
   const searchParams = useSearchParams();
-  const finalScore = searchParams.get('score');
+  const finalScore = parseInt(searchParams.get('score') || '0');
   const { user } = useAuth();
+  const { toast } = useToast();
   
-  // Combine current user with mock players
+  useEffect(() => {
+    if (user && finalScore > 0) {
+      const updateUserScore = async () => {
+        const userRef = doc(db, 'users', user.uid);
+        try {
+          await updateDoc(userRef, {
+            score: increment(finalScore)
+          });
+          toast({
+            title: "¡Puntuación actualizada!",
+            description: `Se han añadido ${finalScore} puntos a tu total.`,
+          })
+        } catch (error) {
+          console.error("Error updating score: ", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudo actualizar tu puntuación total."
+          })
+        }
+      };
+      updateUserScore();
+    }
+  }, [user, finalScore, toast]);
+
+
   const allPlayers = [
     ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
   ];
@@ -28,12 +58,11 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
   if (user) {
     allPlayers.push({
       name: user.name || 'Tú',
-      score: parseInt(finalScore || '0'),
+      score: finalScore,
       isCurrentUser: true,
     });
   }
   
-  // Sort by score and assign rank
   const rankedPlayers = allPlayers
     .sort((a,b) => b.score - a.score)
     .map((p, i) => ({...p, rank: i + 1}));
