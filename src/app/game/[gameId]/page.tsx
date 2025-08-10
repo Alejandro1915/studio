@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import QuizArea from "@/components/game/QuizArea";
 import WaitingRoom from "@/components/game/WaitingRoom";
 import MatchSummary from "@/components/game/MatchSummary";
+import { useParams } from "next/navigation";
 
 export interface Game {
     id: string;
@@ -18,13 +19,16 @@ export interface Game {
     scores?: { [key: string]: number };
 }
 
-export default function GamePage({ params }: { params: { gameId: string } }) {
-  const { gameId } = params;
+export default function GamePage() {
+  const params = useParams();
+  const gameId = params.gameId as string;
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!gameId) return;
+
     if (gameId === 'random') {
         setGame(null);
         setLoading(false);
