@@ -52,9 +52,11 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Perfil</span>
+          <DropdownMenuItem asChild>
+             <Link href="/profile">
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Perfil</span>
+             </Link>
           </DropdownMenuItem>
           {user.role === 'admin' && (
              <DropdownMenuItem asChild>

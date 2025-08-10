@@ -15,7 +15,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
-import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer, updateDoc } from 'firebase/firestore';
 
 interface User {
   uid: string;
@@ -33,14 +33,18 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
+  updateProfileData: (data: { name?: string, photoURL?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const checkNicknameUniqueness = async (name: string): Promise<boolean> => {
+const checkNicknameUniqueness = async (name: string, currentUserId?: string): Promise<boolean> => {
     const q = query(collection(db, "users"), where("name", "==", name));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.empty;
+    if (querySnapshot.empty) return true;
+    // If nickname exists, check if it belongs to the current user
+    if (currentUserId && querySnapshot.docs[0].id === currentUserId) return true;
+    return false;
 }
 
 const getUserRole = async (email: string | null): Promise<'admin' | 'user'> => {
@@ -62,22 +66,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
+  const fetchUser = async (firebaseUser: FirebaseUser) => {
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      setUser({
+          uid: firebaseUser.uid,
+          name: userData.name || firebaseUser.displayName,
+          email: userData.email || firebaseUser.email,
+          photoURL: userData.photoURL || firebaseUser.photoURL,
+          role: userData.role,
+          score: userData.score
+      });
+    } else {
+       const { uid, displayName, email, photoURL } = firebaseUser;
+       const role = await getUserRole(email);
+       const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0 };
+       await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0 });
+       setUser(newUser);
+    }
+  }
+
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const { name, email, photoURL, role, score } = userDoc.data();
-          setUser({ uid: firebaseUser.uid, name, email, photoURL: photoURL || firebaseUser.photoURL, role, score });
-        } else {
-          // This case handles Google sign-in for the first time
-           const { uid, displayName, email, photoURL } = firebaseUser;
-           const role = await getUserRole(email);
-           const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0 };
-           await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0 });
-           setUser(newUser);
-        }
+        await fetchUser(firebaseUser);
       } else {
         setUser(null);
       }
@@ -91,12 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (loading) return;
 
     const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname === '/';
+    const isProfilePage = pathname === '/profile';
     const isAdminPage = pathname.startsWith('/admin');
 
-    if (!user && !isAuthPage) {
+    if (!user && !isAuthPage && !isProfilePage) {
       router.push('/login');
     }
-    if(user && isAuthPage){
+     if (user && (pathname === '/login' || pathname === '/signup')) {
         router.push('/dashboard');
     }
     if(user && isAdminPage && user.role !== 'admin'){
@@ -106,11 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [user, loading, pathname, router]);
 
-  const handleAuthAction = async (action: () => Promise<any>, successMessage: string, successPath: string) => {
+  const handleAuthAction = async (action: () => Promise<any>, successMessage: string, successPath?: string) => {
     try {
       await action();
       toast({ title: 'Éxito', description: successMessage });
-      router.push(successPath);
+      if (successPath) {
+        router.push(successPath);
+      }
     } catch (error: any) {
         if (error.code === AuthErrorCodes.EMAIL_EXISTS) {
             toast({ variant: 'destructive', title: 'Error de Registro', description: 'El correo electrónico ya está en uso. Por favor, intenta iniciar sesión.' });
@@ -169,7 +187,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const value = { user, loading, login, logout, loginWithGoogle, signup };
+  const updateProfileData = async (data: { name?: string, photoURL?: string }) => {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) throw new Error("No hay un usuario autenticado.");
+
+      if (data.name) {
+          const isNicknameUnique = await checkNicknameUniqueness(data.name, firebaseUser.uid);
+          if (!isNicknameUnique) {
+              toast({ variant: 'destructive', title: 'Error', description: 'Este apodo ya está en uso. Por favor, elige otro.' });
+              return;
+          }
+      }
+      
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const dataToUpdate: { [key: string]: any } = {};
+      if (data.name) dataToUpdate.name = data.name;
+      if (data.photoURL) dataToUpdate.photoURL = data.photoURL;
+
+      await handleAuthAction(async () => {
+        await updateDoc(userDocRef, dataToUpdate);
+        await updateProfile(firebaseUser, {
+            displayName: data.name,
+            photoURL: data.photoURL
+        });
+        await fetchUser(firebaseUser); // Refresh user data
+      }, 'Perfil actualizado correctamente.');
+  }
+
+  const value = { user, loading, login, logout, loginWithGoogle, signup, updateProfileData };
 
   return (
     <AuthContext.Provider value={value}>
