@@ -37,7 +37,7 @@ const questionSchema = z.object({
 });
 
 
-const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question | null, onSave: () => void, onOpenChange: (open: boolean) => void }) => {
+const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?: Question | null, onSave: () => void, onDelete: (id: string) => void, onOpenChange: (open: boolean) => void }) => {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof questionSchema>>({
         resolver: zodResolver(questionSchema),
@@ -77,6 +77,14 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             console.error(error);
         }
     };
+
+    const handleDeleteClick = () => {
+        if (!question?.id) return;
+        if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
+        
+        onDelete(question.id);
+        onOpenChange(false);
+    }
     
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -149,9 +157,18 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                         </FormItem>
                     )} />
 
-                    <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
-                    </Button>
+                    <div className="flex justify-between items-center">
+                        <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
+                            {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
+                        </Button>
+
+                        {question && (
+                             <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={form.formState.isSubmitting}>
+                                <Trash2 className="mr-2" />
+                                Eliminar
+                            </Button>
+                        )}
+                    </div>
                 </form>
             </Form>
         </DialogContent>
@@ -159,16 +176,13 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
 }
 
 // New isolated component for each question item
-const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEdit: (question: Question) => void, onDelete: (id: string) => void }) => {
+const QuestionItem = ({ question, onEdit }: { question: Question, onEdit: (question: Question) => void }) => {
     return (
         <div className="border p-4 rounded-lg flex justify-between items-center">
             <p className="font-medium">{question.question}</p>
             <div className="flex gap-2">
                 <Button variant="ghost" size="icon" onClick={() => onEdit(question)}>
                     <Edit className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(question.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
             </div>
         </div>
@@ -201,10 +215,10 @@ export default function QuestionManagement() {
   }, []);
 
   const handleDelete = async (questionId: string) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta?")) return;
     try {
         await deleteDoc(doc(db, "questions", questionId));
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
+        // Optimistic UI update
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
@@ -249,7 +263,7 @@ export default function QuestionManagement() {
                     Añadir Pregunta
                 </Button>
             </DialogTrigger>
-            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onOpenChange={handleDialogChange}/>}
+            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onDelete={handleDelete} onOpenChange={handleDialogChange}/>}
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -257,12 +271,11 @@ export default function QuestionManagement() {
             <p>Cargando preguntas...</p>
         ) : (
             <div className="space-y-4">
-                {questions.map((q) => (
+                {questions.map((q, index) => (
                     <QuestionItem 
-                        key={q.id}
+                        key={q.id + '-' + index}
                         question={q}
                         onEdit={handleEditClick}
-                        onDelete={handleDelete}
                     />
                 ))}
             </div>
