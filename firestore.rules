@@ -1,32 +1,38 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+
     function isUserAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isUserAdmin() {
       return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isGameHost() {
+      return resource.data.hostId == request.auth.uid;
+    }
+
     match /users/{userId} {
-      allow read: if isUserAuthenticated();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
+      allow read;
+      allow update: if isUserAuthenticated() && isOwner(userId);
+      allow create;
     }
 
     match /questions/{questionId} {
       allow read: if isUserAuthenticated();
       allow create, update, delete: if isUserAdmin();
     }
-    
+
     match /games/{gameId} {
-      // Anyone can create a new game
+      allow read: if isUserAuthenticated();
       allow create: if isUserAuthenticated();
-      // Players in the game or host can read/update it
-      allow read, update: if isUserAuthenticated() && (resource.data.hostId == request.auth.uid || request.auth.uid in resource.data.players.map(p => p.uid));
+      allow update: if isUserAuthenticated(); 
     }
   }
 }
