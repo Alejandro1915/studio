@@ -77,14 +77,6 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
             console.error(error);
         }
     };
-
-    const handleDeleteClick = () => {
-        if (!question?.id) return;
-        if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
-        
-        onDelete(question.id);
-        onOpenChange(false);
-    }
     
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -162,8 +154,8 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
                             {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
                         </Button>
 
-                        {question && (
-                             <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={form.formState.isSubmitting}>
+                        {question?.id && (
+                             <Button type="button" variant="destructive" onClick={() => onDelete(question.id)} disabled={form.formState.isSubmitting}>
                                 <Trash2 className="mr-2" />
                                 Eliminar
                             </Button>
@@ -175,7 +167,6 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
     )
 }
 
-// New isolated component for each question item
 const QuestionItem = ({ question, onEdit }: { question: Question, onEdit: (question: Question) => void }) => {
     return (
         <div className="border p-4 rounded-lg flex justify-between items-center">
@@ -215,11 +206,14 @@ export default function QuestionManagement() {
   }, []);
 
   const handleDelete = async (questionId: string) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
+    
     try {
         await deleteDoc(doc(db, "questions", questionId));
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
-        // Optimistic UI update
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
+        setIsDialogOpen(false); 
+        setSelectedQuestion(null);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
         console.error(error);
@@ -271,9 +265,9 @@ export default function QuestionManagement() {
             <p>Cargando preguntas...</p>
         ) : (
             <div className="space-y-4">
-                {questions.map((q, index) => (
+                {questions.map((q) => (
                     <QuestionItem 
-                        key={q.id + '-' + index}
+                        key={q.id}
                         question={q}
                         onEdit={handleEditClick}
                     />
