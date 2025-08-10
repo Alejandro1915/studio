@@ -158,6 +158,23 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
     )
 }
 
+// New isolated component for each question item
+const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEdit: (question: Question) => void, onDelete: (id: string) => void }) => {
+    return (
+        <div className="border p-4 rounded-lg flex justify-between items-center">
+            <p className="font-medium">{question.question}</p>
+            <div className="flex gap-2">
+                <Button variant="ghost" size="icon" onClick={() => onEdit(question)}>
+                    <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => onDelete(question.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+            </div>
+        </div>
+    );
+};
+
 
 export default function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([])
@@ -168,10 +185,15 @@ export default function QuestionManagement() {
 
   const fetchQuestions = async () => {
     setLoading(true);
-    const querySnapshot = await getDocs(collection(db, 'questions'));
-    const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
-    setQuestions(questionsData);
-    setLoading(false);
+    try {
+        const querySnapshot = await getDocs(collection(db, 'questions'));
+        const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+        setQuestions(questionsData);
+    } catch(error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las preguntas.' });
+    } finally {
+        setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -236,17 +258,12 @@ export default function QuestionManagement() {
         ) : (
             <div className="space-y-4">
                 {questions.map((q) => (
-                    <div key={q.id} className="border p-4 rounded-lg flex justify-between items-center">
-                        <p className="font-medium">{q.question}</p>
-                        <div className="flex gap-2">
-                           <Button variant="ghost" size="icon" onClick={() => handleEditClick(q)}>
-                                <Edit className="w-4 h-4" />
-                           </Button>
-                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                           </Button>
-                        </div>
-                    </div>
+                    <QuestionItem 
+                        key={q.id}
+                        question={q}
+                        onEdit={handleEditClick}
+                        onDelete={handleDelete}
+                    />
                 ))}
             </div>
         )}
