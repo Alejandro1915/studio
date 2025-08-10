@@ -14,14 +14,22 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Badge } from '../ui/badge'
+import { cn } from '@/lib/utils'
+
+export type Difficulty = 'Fácil' | 'Normal' | 'Difícil';
 
 export interface Question {
   id: string;
   question: string;
   options: string[];
   answer: string;
+  difficulty: Difficulty;
   image?: string;
 }
+
+const difficultyLevels: Difficulty[] = ['Fácil', 'Normal', 'Difícil'];
 
 const questionSchema = z.object({
   id: z.string().optional(),
@@ -30,6 +38,7 @@ const questionSchema = z.object({
     z.string().min(1, "La opción no puede estar vacía.")
   ).min(4, "Debe haber 4 opciones.").max(4, "Solo puede haber 4 opciones."),
   answer: z.string().min(1, "Debes seleccionar una respuesta correcta."),
+  difficulty: z.enum(difficultyLevels, { required_error: "Debes seleccionar una dificultad." }),
   image: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')),
 }).refine(data => data.options.includes(data.answer), {
     message: "La respuesta correcta debe ser una de las opciones.",
@@ -45,6 +54,7 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
             question: '',
             options: ['', '', '', ''],
             answer: '',
+            difficulty: 'Normal',
             image: ''
         },
         mode: 'onChange'
@@ -58,6 +68,7 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
               question: data.question,
               options: data.options,
               answer: data.answer,
+              difficulty: data.difficulty,
               image: data.image,
             };
 
@@ -77,6 +88,12 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
             console.error(error);
         }
     };
+
+    const handleDeleteClick = () => {
+        if (question?.id) {
+            onDelete(question.id);
+        }
+    }
     
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -92,7 +109,26 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
                             <FormMessage />
                         </FormItem>
                     )} />
-                    
+
+                    <FormField control={form.control} name="difficulty" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Dificultad</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un nivel de dificultad" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {difficultyLevels.map(level => (
+                                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                             <FormMessage />
+                        </FormItem>
+                    )} />
+
                     <FormField
                         control={form.control}
                         name="answer"
@@ -155,7 +191,7 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
                         </Button>
 
                         {question?.id && (
-                             <Button type="button" variant="destructive" onClick={() => onDelete(question.id)} disabled={form.formState.isSubmitting}>
+                             <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={form.formState.isSubmitting}>
                                 <Trash2 className="mr-2" />
                                 Eliminar
                             </Button>
@@ -167,10 +203,22 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
     )
 }
 
+const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
+    switch(difficulty) {
+        case 'Fácil': return 'default';
+        case 'Normal': return 'secondary';
+        case 'Difícil': return 'destructive';
+        default: return 'outline';
+    }
+}
+
 const QuestionItem = ({ question, onEdit }: { question: Question, onEdit: (question: Question) => void }) => {
     return (
-        <div className="border p-4 rounded-lg flex justify-between items-center">
-            <p className="font-medium">{question.question}</p>
+        <div className="border p-4 rounded-lg flex justify-between items-center gap-4">
+            <p className="font-medium flex-1">{question.question}</p>
+             <Badge variant={getDifficultyBadgeVariant(question.difficulty)} className="whitespace-nowrap">
+                {question.difficulty}
+            </Badge>
             <div className="flex gap-2">
                 <Button variant="ghost" size="icon" onClick={() => onEdit(question)}>
                     <Edit className="w-4 h-4" />
