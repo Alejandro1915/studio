@@ -179,15 +179,15 @@ export default function QuestionManagement() {
   }, []);
 
   const handleDelete = async (questionId: string) => {
-      if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta?")) return;
-      try {
-          await deleteDoc(doc(db, "questions", questionId));
-          toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
-          setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
-          console.error(error);
-      }
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta?")) return;
+    try {
+        await deleteDoc(doc(db, "questions", questionId));
+        toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
+        setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
+        console.error(error);
+    }
   }
 
   const handleAddClick = () => {
