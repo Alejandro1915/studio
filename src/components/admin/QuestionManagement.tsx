@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast'
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group'
 
 export interface Question {
-  id?: string;
+  id: string;
   question: string;
   options: string[];
   answer: string;
@@ -41,7 +41,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
     const { toast } = useToast();
     const form = useForm<z.infer<typeof questionSchema>>({
         resolver: zodResolver(questionSchema),
-        defaultValues: question || {
+        defaultValues: question ? { ...question } : {
             question: '',
             options: ['', '', '', ''],
             answer: '',
@@ -61,8 +61,8 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
               image: data.image,
             };
 
-            if (data.id) {
-                const questionRef = doc(db, 'questions', data.id);
+            if (question?.id) {
+                const questionRef = doc(db, 'questions', question.id);
                 await updateDoc(questionRef, dataToSave);
                 toast({ title: 'Éxito', description: 'Pregunta actualizada correctamente.' });
             } else {
@@ -71,6 +71,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
             }
             onSave();
             onOpenChange(false);
+            form.reset();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar la pregunta.' });
             console.error(error);
@@ -114,6 +115,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                                                          <FormControl>
                                                             <RadioGroupItem 
                                                                 value={watchedOptions?.[index] || `option-${index}`}
+                                                                checked={field.value === watchedOptions?.[index]}
                                                                 disabled={!watchedOptions?.[index]}
                                                             />
                                                         </FormControl>
@@ -176,12 +178,12 @@ export default function QuestionManagement() {
     fetchQuestions();
   }, []);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (questionId: string) => {
       if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta?")) return;
       try {
-          await deleteDoc(doc(db, "questions", id));
+          await deleteDoc(doc(db, "questions", questionId));
           toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
-          fetchQuestions();
+          setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
       } catch (error) {
           toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
           console.error(error);
@@ -198,6 +200,19 @@ export default function QuestionManagement() {
       setIsDialogOpen(true);
   }
 
+  const handleDialogSave = () => {
+    fetchQuestions();
+    setIsDialogOpen(false);
+    setSelectedQuestion(null);
+  }
+  
+  const handleDialogChange = (open: boolean) => {
+      setIsDialogOpen(open);
+      if(!open) {
+          setSelectedQuestion(null);
+      }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -205,14 +220,14 @@ export default function QuestionManagement() {
             <CardTitle>Gestión de Preguntas</CardTitle>
             <CardDescription>Añade, edita o elimina las preguntas del quiz.</CardDescription>
         </div>
-         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
                 <Button onClick={handleAddClick}>
                     <PlusCircle className="mr-2" />
                     Añadir Pregunta
                 </Button>
             </DialogTrigger>
-            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={fetchQuestions} onOpenChange={setIsDialogOpen}/>}
+            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onOpenChange={handleDialogChange}/>}
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -220,14 +235,14 @@ export default function QuestionManagement() {
             <p>Cargando preguntas...</p>
         ) : (
             <div className="space-y-4">
-                {questions.map((q, index) => (
-                    <div key={`${q.id}-${index}`} className="border p-4 rounded-lg flex justify-between items-center">
+                {questions.map((q) => (
+                    <div key={q.id} className="border p-4 rounded-lg flex justify-between items-center">
                         <p className="font-medium">{q.question}</p>
                         <div className="flex gap-2">
                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(q)}>
                                 <Edit className="w-4 h-4" />
                            </Button>
-                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id!)}>
+                           <Button variant="ghost" size="icon" onClick={() => handleDelete(q.id)}>
                                 <Trash2 className="w-4 h-4 text-destructive" />
                            </Button>
                         </div>
