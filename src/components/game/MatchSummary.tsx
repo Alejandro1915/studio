@@ -7,35 +7,35 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { Trophy, Home } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock data for other players
+// Mock data for other players for random games
 const otherPlayers = [
   { name: 'OtakuSlayer', score: 1250 },
   { name: 'WeebLord', score: 1100 },
   { name: 'SenpaiSays', score: 980 },
 ];
 
-export default function MatchSummary({ gameId }: { gameId: string }) {
+export default function MatchSummary({ gameId, finalScores }: { gameId: string, finalScores?: { [key: string]: number } }) {
   const searchParams = useSearchParams();
-  const finalScore = parseInt(searchParams.get('score') || '0');
+  const randomScore = parseInt(searchParams.get('score') || '0');
   const { user } = useAuth();
   const { toast } = useToast();
   
   useEffect(() => {
-    if (user && finalScore > 0) {
+    if (user && randomScore > 0 && gameId === 'random') {
       const updateUserScore = async () => {
         const userRef = doc(db, 'users', user.uid);
         try {
           await updateDoc(userRef, {
-            score: increment(finalScore)
+            score: increment(randomScore)
           });
           toast({
             title: "¡Puntuación actualizada!",
-            description: `Se han añadido ${finalScore} puntos a tu total.`,
+            description: `Se han añadido ${randomScore} puntos a tu total.`,
           })
         } catch (error) {
           console.error("Error updating score: ", error);
@@ -48,24 +48,35 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
       };
       updateUserScore();
     }
-  }, [user, finalScore, toast]);
+  }, [user, randomScore, gameId, toast]);
 
+  const rankedPlayers = useMemo(() => {
+    let allPlayers: { name: string; score: number; isCurrentUser: boolean }[] = [];
 
-  const allPlayers = [
-    ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
-  ];
+    if (gameId === 'random') {
+      allPlayers = [
+        ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
+      ];
+      if (user) {
+        allPlayers.push({
+          name: user.name || 'Tú',
+          score: randomScore,
+          isCurrentUser: true,
+        });
+      }
+    } else if (finalScores && user) {
+       // This part would be improved by fetching player names from user IDs
+      allPlayers = Object.entries(finalScores).map(([uid, score]) => ({
+          name: uid === user.uid ? (user.name || 'Tú') : `Jugador...${uid.slice(-4)}`,
+          score: score,
+          isCurrentUser: uid === user.uid
+      }));
+    }
 
-  if (user) {
-    allPlayers.push({
-      name: user.name || 'Tú',
-      score: finalScore,
-      isCurrentUser: true,
-    });
-  }
-  
-  const rankedPlayers = allPlayers
-    .sort((a,b) => b.score - a.score)
-    .map((p, i) => ({...p, rank: i + 1}));
+    return allPlayers
+      .sort((a,b) => b.score - a.score)
+      .map((p, i) => ({...p, rank: i + 1}));
+  }, [gameId, finalScores, randomScore, user]);
 
 
   return (
@@ -75,7 +86,7 @@ export default function MatchSummary({ gameId }: { gameId: string }) {
             <Trophy className="w-12 h-12 text-primary" />
         </div>
         <CardTitle className="text-4xl font-headline text-primary">¡Partida Terminada!</CardTitle>
-        <CardDescription className="text-lg">Estos son los resultados finales de la partida #{gameId}</CardDescription>
+        <CardDescription className="text-lg">Estos son los resultados finales de la partida</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>

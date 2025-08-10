@@ -2,31 +2,31 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+  
     function isUserAuthenticated() {
       return request.auth != null;
     }
-
+    
     function isUserAdmin() {
-      // Check if the user is authenticated and their role in the users collection is 'admin'.
       return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Questions can be read by any authenticated user, but only managed by admins.
-    match /questions/{questionId} {
-      allow read: if isUserAuthenticated();
-      // Admins can create, update, and delete questions.
-      allow create, update, delete: if isUserAdmin();
-    }
-
-    // Users can be read by any authenticated user (for leaderboards).
-    // Users can only update their own document.
     match /users/{userId} {
       allow read: if isUserAuthenticated();
+      allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
-      // Document creation is handled by the useAuth hook after signup.
-      // This rule allows the hook to create the user document.
+    }
+
+    match /questions/{questionId} {
+      allow read: if isUserAuthenticated();
+      allow create, update, delete: if isUserAdmin();
+    }
+    
+    match /games/{gameId} {
+      // Anyone can create a new game
       allow create: if isUserAuthenticated();
+      // Players in the game or host can read/update it
+      allow read, update: if isUserAuthenticated() && (resource.data.hostId == request.auth.uid || request.auth.uid in resource.data.players.map(p => p.uid));
     }
   }
 }

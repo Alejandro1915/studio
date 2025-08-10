@@ -9,14 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, Difficulty } from '../admin/QuestionManagement';
 import { Badge } from '../ui/badge';
+import { useAuth } from '@/hooks/use-auth';
+import type { Game } from '@/app/game/[gameId]/page';
 
 const TIME_PER_QUESTION = 15; // segundos
+const TOTAL_QUESTIONS = 10;
 
-// Helper function to shuffle an array
 const shuffleArray = (array: any[]) => {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -24,62 +26,6 @@ const shuffleArray = (array: any[]) => {
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
-};
-
-const seedQuestions = async () => {
-    const questionsRef = collection(db, 'questions');
-    const snapshot = await getDocs(questionsRef);
-    if (snapshot.empty) {
-        console.log("No questions found, seeding database...");
-        const questionsToSeed: Omit<Question, 'id'>[] = [
-            {
-                question: 'En "Naruto", ¿quién es el maestro del Equipo 7?',
-                options: ['Jiraiya', 'Kakashi Hatake', 'Might Guy', 'Iruka Umino'],
-                answer: 'Kakashi Hatake',
-                difficulty: 'Fácil',
-                image: 'https://placehold.co/600x300.png',
-            },
-            {
-                question: '¿Cuál es el nombre del titán que posee Eren Jaeger en "Attack on Titan"?',
-                options: ['Titán Colosal', 'Titán Acorazado', 'Titán de Ataque', 'Titán Bestia'],
-                answer: 'Titán de Ataque',
-                difficulty: 'Normal',
-                image: 'https://placehold.co/600x300.png',
-            },
-            {
-                question: 'En "Dragon Ball Z", ¿quién es el primer enemigo que alcanza la forma de Super Saiyan?',
-                options: ['Vegeta', 'Goku', 'Freezer', 'Broly'],
-                answer: 'Goku',
-                difficulty: 'Normal',
-                image: 'https://placehold.co/600x300.png',
-            },
-            {
-                question: '¿Qué objeto busca el protagonista en "One Piece" para convertirse en el Rey de los Piratas?',
-                options: ['El All Blue', 'El One Piece', 'El Poneglyph', 'La Fruta del Diablo'],
-                answer: 'El One Piece',
-                difficulty: 'Fácil',
-                image: 'https://placehold.co/600x300.png',
-            },
-            {
-                question: 'En "Demon Slayer", ¿cuál es el nombre de la hermana de Tanjiro Kamado?',
-                options: ['Kanao Tsuyuri', 'Shinobu Kocho', 'Nezuko Kamado', 'Mitsuri Kanroji'],
-                answer: 'Nezuko Kamado',
-                difficulty: 'Fácil',
-                image: 'https://placehold.co/600x300.png',
-            },
-            {
-                question: 'En "Code Geass", ¿cuál es el poder que Lelouch obtiene de C.C.?',
-                options: ['Death Note', 'Geass', 'Stand', 'Nen'],
-                answer: 'Geass',
-                difficulty: 'Difícil',
-                image: 'https://placehold.co/600x300.png',
-            }
-        ];
-        
-        for (const q of questionsToSeed) {
-            await addDoc(questionsRef, q);
-        }
-    }
 };
 
 const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
@@ -91,9 +37,10 @@ const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
     }
 }
 
-
 export default function QuizArea({ gameId }: { gameId: string }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const [game, setGame] = useState<Game | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -103,21 +50,38 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   const [isAnswered, setIsAnswered] = useState(false);
 
   useEffect(() => {
-    const fetchQuestions = async () => {
+    const setupGame = async () => {
       try {
-        await seedQuestions();
-        const querySnapshot = await getDocs(collection(db, 'questions'));
-        const questionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
-        // Shuffle questions
-        setQuestions(shuffleArray(questionsData));
+        if (gameId === 'random') {
+          // Public match: fetch random questions
+          const querySnapshot = await getDocs(collection(db, 'questions'));
+          const allQuestions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+          setQuestions(shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS));
+          setCurrentQuestionIndex(0);
+        } else {
+          // Private match: fetch game data
+          const gameRef = doc(db, 'games', gameId);
+          const gameSnap = await getDoc(gameRef);
+          if (gameSnap.exists()) {
+            const gameData = { id: gameSnap.id, ...gameSnap.data() } as Game;
+            setGame(gameData);
+            setQuestions(gameData.questions || []);
+            setCurrentQuestionIndex(gameData.currentQuestionIndex || 0);
+
+            // Set initial score for the current user if it exists in the game data
+            if (user && gameData.scores && gameData.scores[user.uid]) {
+              setScore(gameData.scores[user.uid]);
+            }
+          }
+        }
       } catch(e) {
-        console.error("Failed to fetch questions", e)
+        console.error("Failed to setup game", e);
       } finally {
         setLoading(false);
       }
     };
-    fetchQuestions();
-  }, []);
+    setupGame();
+  }, [gameId, user]);
 
   const currentQuestion = questions[currentQuestionIndex];
   
@@ -128,11 +92,11 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     return [];
   }, [currentQuestion]);
 
-
   useEffect(() => {
-    if (isAnswered || loading) return;
+    if (isAnswered || loading || !currentQuestion) return;
     if (timeLeft === 0) {
-      setIsAnswered(true);
+      setIsAnswered(true); // Mark as answered to show feedback
+      setSelectedAnswer(null); // No answer was selected
       setTimeout(nextQuestion, 2000);
       return;
     }
@@ -140,30 +104,47 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, isAnswered, loading]);
+  }, [timeLeft, isAnswered, loading, currentQuestion]);
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = async (answer: string) => {
     if (isAnswered) return;
 
     setIsAnswered(true);
     setSelectedAnswer(answer);
-
+    
+    let points = 0;
     if (answer === currentQuestion.answer) {
-      setScore((prev) => prev + 100 + timeLeft * 10);
+      points = 100 + timeLeft * 10;
+      setScore((prev) => prev + points);
+    }
+    
+    if (gameId !== 'random' && user) {
+        const gameRef = doc(db, 'games', gameId);
+        const newScores = { ...game?.scores, [user.uid]: (score + points) };
+        await updateDoc(gameRef, { scores: newScores });
     }
 
     setTimeout(nextQuestion, 2000);
   };
 
-  const nextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
+  const nextQuestion = async () => {
+    const nextIndex = currentQuestionIndex + 1;
+    if (nextIndex < questions.length) {
+      if (gameId !== 'random') {
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, { currentQuestionIndex: nextIndex });
+      }
+      setCurrentQuestionIndex(nextIndex);
       setTimeLeft(TIME_PER_QUESTION);
       setSelectedAnswer(null);
       setIsAnswered(false);
     } else {
-      // End of quiz
-      router.push(`/summary/${gameId}?score=${score}`);
+      if (gameId !== 'random') {
+        const gameRef = doc(db, 'games', gameId);
+        await updateDoc(gameRef, { status: 'finished' });
+      } else {
+        router.push(`/summary/${gameId}?score=${score}`);
+      }
     }
   };
 
@@ -191,7 +172,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       return (
           <div className="flex flex-col items-center justify-center gap-4 text-xl">
               <Loader className="w-12 h-12 animate-spin text-primary" />
-              Cargando preguntas...
+              Preparando la partida...
           </div>
       )
   }
@@ -203,7 +184,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
                 <CardTitle>No hay preguntas</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>No se encontraron preguntas. Un administrador debe añadir preguntas para poder jugar.</p>
+                <p>No se encontraron preguntas para esta partida. Es posible que un administrador deba añadirlas.</p>
                 <Button onClick={() => router.push('/dashboard')} className="mt-4">Volver al Lobby</Button>
               </CardContent>
           </Card>
