@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { collection, getDocs, doc, updateDoc, arrayUnion, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, arrayUnion, getDoc, setDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, Difficulty } from '../admin/QuestionManagement';
 import { Badge } from '../ui/badge';
@@ -39,6 +39,7 @@ const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
 
 export default function QuizArea({ gameId }: { gameId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -53,10 +54,28 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     const setupGame = async () => {
       try {
         if (gameId === 'random') {
-          // Public match: fetch random questions
-          const querySnapshot = await getDocs(collection(db, 'questions'));
+          // Public match: fetch random questions based on difficulty
+          const difficulty = searchParams.get('difficulty') as Difficulty | null;
+          const questionsRef = collection(db, 'questions');
+          
+          let q;
+          if (difficulty && ['Fácil', 'Normal', 'Difícil'].includes(difficulty)) {
+            q = query(questionsRef, where('difficulty', '==', difficulty));
+          } else {
+            q = query(questionsRef); // Fallback to all questions if no difficulty
+          }
+          
+          const querySnapshot = await getDocs(q);
           const allQuestions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
-          setQuestions(shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS));
+          
+          if (allQuestions.length === 0) {
+              console.warn(`No questions found for difficulty: ${difficulty}. Fetching any questions.`);
+              const allDocsSnapshot = await getDocs(collection(db, 'questions'));
+              const fallbackQuestions = allDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+              setQuestions(shuffleArray(fallbackQuestions).slice(0, TOTAL_QUESTIONS));
+          } else {
+            setQuestions(shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS));
+          }
           setCurrentQuestionIndex(0);
         } else {
           // Private match: fetch game data
@@ -81,7 +100,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       }
     };
     setupGame();
-  }, [gameId, user]);
+  }, [gameId, user, searchParams]);
 
   const currentQuestion = questions[currentQuestionIndex];
   
@@ -139,11 +158,12 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setSelectedAnswer(null);
       setIsAnswered(false);
     } else {
+       const difficulty = searchParams.get('difficulty');
       if (gameId !== 'random') {
         const gameRef = doc(db, 'games', gameId);
         await updateDoc(gameRef, { status: 'finished' });
       } else {
-        router.push(`/summary/${gameId}?score=${score}`);
+        router.push(`/summary/${gameId}?score=${score}${difficulty ? `&difficulty=${difficulty}`: ''}`);
       }
     }
   };
@@ -184,7 +204,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
                 <CardTitle>No hay preguntas</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>No se encontraron preguntas para esta partida. Es posible que un administrador deba añadirlas.</p>
+                <p>No se encontraron preguntas para esta dificultad. Es posible que un administrador deba añadirlas.</p>
                 <Button onClick={() => router.push('/dashboard')} className="mt-4">Volver al Lobby</Button>
               </CardContent>
           </Card>

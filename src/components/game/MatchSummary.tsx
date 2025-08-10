@@ -11,17 +11,38 @@ import { useEffect, useMemo } from 'react';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import type { Difficulty } from '../admin/QuestionManagement';
 
-// Mock data for other players for random games
-const otherPlayers = [
-  { name: 'OtakuSlayer', score: 1250 },
-  { name: 'WeebLord', score: 1100 },
-  { name: 'SenpaiSays', score: 980 },
-];
+
+const getOtherPlayers = (difficulty: Difficulty | null) => {
+    switch (difficulty) {
+        case 'Fácil':
+            return [
+                { name: 'PrincipianteKun', score: 850 },
+                { name: 'WaifuWatcher', score: 720 },
+                { name: 'BakaBrawler', score: 650 },
+            ];
+        case 'Difícil':
+             return [
+                { name: 'OtakuSama', score: 1850 },
+                { name: 'WeebLord', score: 1700 },
+                { name: 'SenpaiSensei', score: 1680 },
+            ];
+        case 'Normal':
+        default:
+             return [
+                { name: 'AnimeEnjoyer', score: 1250 },
+                { name: 'ShonenFan', score: 1100 },
+                { name: 'IsekaiTraveler', score: 980 },
+            ];
+    }
+}
+
 
 export default function MatchSummary({ gameId, finalScores }: { gameId: string, finalScores?: { [key: string]: number } }) {
   const searchParams = useSearchParams();
   const randomScore = parseInt(searchParams.get('score') || '0');
+  const difficulty = searchParams.get('difficulty') as Difficulty | null;
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -54,6 +75,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
     let allPlayers: { name: string; score: number; isCurrentUser: boolean }[] = [];
 
     if (gameId === 'random') {
+      const otherPlayers = getOtherPlayers(difficulty);
       allPlayers = [
         ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
       ];
@@ -76,7 +98,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
     return allPlayers
       .sort((a,b) => b.score - a.score)
       .map((p, i) => ({...p, rank: i + 1}));
-  }, [gameId, finalScores, randomScore, user]);
+  }, [gameId, finalScores, randomScore, user, difficulty]);
 
 
   return (

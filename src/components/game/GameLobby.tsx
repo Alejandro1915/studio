@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dices, Users, Swords, Trophy, Loader2 } from "lucide-react";
+import { Dices, Users, Swords, Trophy, Loader2, Star, Brain, Skull } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -40,16 +40,32 @@ export default function GameLobby() {
     
     const gameModes = [
         {
-            title: "Partida Aleatoria",
-            description: "Entra en una partida con otros jugadores de todo el mundo.",
-            icon: <Dices className="w-8 h-8 text-primary" />,
-            action: () => router.push('/game/random'),
-            cta: "Unirse a Partida",
+            title: "Partida Fácil",
+            description: "Preguntas sencillas para empezar a calentar.",
+            icon: <Star className="w-8 h-8 text-green-400" />,
+            action: () => router.push('/game/random?difficulty=Fácil'),
+            cta: "Jugar Fácil",
             disabled: false,
         },
         {
-            title: "Desafiar a un Amigo",
-            description: "Crea una sala privada e invita a tus amigos a un duelo.",
+            title: "Partida Normal",
+            description: "Un desafío balanceado para el otaku promedio.",
+            icon: <Brain className="w-8 h-8 text-blue-400" />,
+            action: () => router.push('/game/random?difficulty=Normal'),
+            cta: "Jugar Normal",
+            disabled: false,
+        },
+        {
+            title: "Partida Difícil",
+            description: "Demuestra tu conocimiento con las preguntas más retadoras.",
+            icon: <Skull className="w-8 h-8 text-red-500" />,
+            action: () => router.push('/game/random?difficulty=Difícil'),
+            cta: "Jugar Difícil",
+            disabled: false,
+        },
+        {
+            title: "Desafiar Amigo",
+            description: "Crea una sala privada e invita a un duelo.",
             icon: <Swords className="w-8 h-8 text-accent" />,
             action: handleCreateRoom,
             cta: isCreatingRoom ? "Creando Sala..." : "Crear Sala",
@@ -57,11 +73,11 @@ export default function GameLobby() {
             iconAction: isCreatingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : null
         },
         {
-            title: "Clasificación Global",
-            description: "Mira cómo te comparas con los mejores jugadores.",
+            title: "Clasificación",
+            description: "Compara tu puntaje con los mejores jugadores.",
             icon: <Trophy className="w-8 h-8 text-yellow-400" />,
             action: () => router.push('/leaderboard'),
-            cta: "Ver Clasificaciones",
+            cta: "Ver Clasificación",
             disabled: false,
         }
     ]
