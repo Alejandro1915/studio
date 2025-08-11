@@ -55,9 +55,20 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
       const updateUserScore = async () => {
         const userRef = doc(db, 'users', user.uid);
         try {
-          await updateDoc(userRef, {
+          const updates: {[key: string]: any} = {
             score: increment(randomScore)
-          });
+          };
+
+          if (isSurvival) {
+            updates.score_survival = increment(randomScore);
+          } else if (isRandom && difficulty) {
+            if (difficulty === 'Fácil') updates.score_easy = increment(randomScore);
+            else if (difficulty === 'Normal') updates.score_normal = increment(randomScore);
+            else if (difficulty === 'Difícil') updates.score_hard = increment(randomScore);
+          }
+
+          await updateDoc(userRef, updates);
+
           toast({
             title: "¡Puntuación actualizada!",
             description: `Se han añadido ${randomScore} puntos a tu total.`,
@@ -73,7 +84,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
       };
       updateUserScore();
     }
-  }, [user, randomScore, gameId, toast, isRandom, isSurvival]);
+  }, [user, randomScore, gameId, toast, isRandom, isSurvival, difficulty]);
 
   const rankedPlayers = useMemo(() => {
     let allPlayers: { name: string; score: number; isCurrentUser: boolean }[] = [];
@@ -111,7 +122,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
     return allPlayers
       .sort((a,b) => b.score - a.score)
       .map((p, i) => ({...p, rank: i + 1}));
-  }, [gameId, finalScores, randomScore, user, difficulty, isRandom, isSurvival]);
+  }, [finalScores, randomScore, user, difficulty, isRandom, isSurvival]);
 
   const cardIcon = isSurvival ? <ShieldAlert className="w-12 h-12 text-primary" /> : <Trophy className="w-12 h-12 text-primary" />;
   const cardTitle = isSurvival ? '¡Has sido derrotado!' : '¡Partida Terminada!';

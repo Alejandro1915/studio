@@ -24,6 +24,10 @@ interface User {
   photoURL: string | null;
   role?: 'admin' | 'user';
   score?: number;
+  score_easy?: number;
+  score_normal?: number;
+  score_hard?: number;
+  score_survival?: number;
 }
 
 interface AuthContextType {
@@ -77,13 +81,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: userData.email || firebaseUser.email,
           photoURL: userData.photoURL || firebaseUser.photoURL,
           role: userData.role,
-          score: userData.score
+          score: userData.score,
+          score_easy: userData.score_easy,
+          score_normal: userData.score_normal,
+          score_hard: userData.score_hard,
+          score_survival: userData.score_survival,
       });
     } else {
        const { uid, displayName, email, photoURL } = firebaseUser;
        const role = await getUserRole(email);
-       const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0 };
-       await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0 });
+       const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 };
+       await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 });
        setUser(newUser);
     }
   }
@@ -162,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const role = await getUserRole(email);
 
-        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role, score: 0 });
+        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 });
 
       },
       'Cuenta creada correctamente. ¡Bienvenido!',
