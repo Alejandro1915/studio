@@ -247,7 +247,8 @@ export default function QuestionManagement() {
     if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
     
     try {
-        await deleteDoc(doc(db, "questions", questionId));
+        const questionDoc = doc(db, 'questions', questionId);
+        await deleteDoc(questionDoc);
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
     } catch (error) {
