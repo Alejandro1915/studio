@@ -1,43 +1,39 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isUserAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isUserAdmin() {
-      // Ensure the user document exists and has the 'role' field before checking if it's 'admin'
-      return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    function isGameHost() {
-      return resource.data.hostId == request.auth.uid;
-    }
-
+    // Reglas para la colección 'users'
     match /users/{userId} {
-      allow read: if isUserAuthenticated();
-      allow update: if isUserAuthenticated() && isOwner(userId);
-      allow create: if isUserAuthenticated() && isOwner(userId);
+      // Cualquiera puede leer los perfiles (para la tabla de clasificación)
+      allow read: if request.auth != null;
+      // Un usuario solo puede crear su propio perfil
+      allow create: if request.auth.uid == userId;
+      // Un usuario solo puede actualizar su propio perfil (nombre, foto)
+      allow update: if request.auth.uid == userId && request.resource.data.keys().hasAll(['name', 'photoURL']);
+      // Nadie puede eliminar usuarios desde el cliente
+      allow delete: if false;
     }
 
+    // Reglas para la colección 'questions'
     match /questions/{questionId} {
-      allow read: if isUserAuthenticated();
-      // Temporarily allow any authenticated user to manage questions for easier development.
-      // For production, this should be restricted to admins only: `if isUserAdmin();`
-      allow create, update, delete: if isUserAuthenticated();
+        // Cualquiera puede leer las preguntas para jugar
+        allow read: if request.auth != null;
+        // Solo los administradores pueden crear, actualizar y eliminar preguntas
+        allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Reglas para la colección 'games'
     match /games/{gameId} {
-      allow read: if isUserAuthenticated();
-      allow create: if isUserAuthenticated();
-      // Only the host or players in the game can update it.
-      allow update: if isUserAuthenticated() && (isGameHost() || request.auth.uid in resource.data.players);
+        // Cualquiera puede leer las partidas
+        allow read: if request.auth != null;
+        // Cualquiera puede crear una partida
+        allow create: if request.auth != null;
+        // Solo un jugador de la partida puede actualizarla
+        allow update: if request.auth != null && request.auth.uid in resource.data.players.map(p => p.uid);
+        // El anfitrión puede eliminar la sala de espera
+        allow delete: if request.auth != null && request.auth.uid == resource.data.hostId;
     }
   }
 }
