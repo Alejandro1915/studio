@@ -46,7 +46,7 @@ const questionSchema = z.object({
 });
 
 
-const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?: Question | null, onSave: () => void, onDelete: (id: string) => void, onOpenChange: (open: boolean) => void }) => {
+const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question | null, onSave: () => void, onOpenChange: (open: boolean) => void }) => {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof questionSchema>>({
         resolver: zodResolver(questionSchema),
@@ -88,12 +88,6 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
             console.error(error);
         }
     };
-
-    const handleDeleteClick = () => {
-        if (question?.id) {
-            onDelete(question.id);
-        }
-    }
     
     return (
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -189,13 +183,6 @@ const QuestionForm = ({ question, onSave, onDelete, onOpenChange }: { question?:
                         <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
                             {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Pregunta'}
                         </Button>
-
-                        {question?.id && (
-                             <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={form.formState.isSubmitting}>
-                                <Trash2 className="mr-2" />
-                                Eliminar
-                            </Button>
-                        )}
                     </div>
                 </form>
             </Form>
@@ -212,7 +199,7 @@ const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
     }
 }
 
-const QuestionItem = ({ question, onEdit }: { question: Question, onEdit: (question: Question) => void }) => {
+const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEdit: (question: Question) => void, onDelete: (id: string) => void }) => {
     return (
         <div className="border p-4 rounded-lg flex justify-between items-center gap-4">
             <p className="font-medium flex-1">{question.question}</p>
@@ -222,6 +209,9 @@ const QuestionItem = ({ question, onEdit }: { question: Question, onEdit: (quest
             <div className="flex gap-2">
                 <Button variant="ghost" size="icon" onClick={() => onEdit(question)}>
                     <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => onDelete(question.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
             </div>
         </div>
@@ -260,8 +250,6 @@ export default function QuestionManagement() {
         await deleteDoc(doc(db, "questions", questionId));
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
-        setIsDialogOpen(false); 
-        setSelectedQuestion(null);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
         console.error(error);
@@ -305,7 +293,7 @@ export default function QuestionManagement() {
                     Añadir Pregunta
                 </Button>
             </DialogTrigger>
-            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onDelete={handleDelete} onOpenChange={handleDialogChange}/>}
+            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onOpenChange={handleDialogChange}/>}
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -318,6 +306,7 @@ export default function QuestionManagement() {
                         key={q.id}
                         question={q}
                         onEdit={handleEditClick}
+                        onDelete={handleDelete}
                     />
                 ))}
             </div>
