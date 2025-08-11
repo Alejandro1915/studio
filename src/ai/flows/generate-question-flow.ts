@@ -13,12 +13,12 @@ import type { Difficulty } from '@/components/admin/QuestionManagement';
 
 const difficultyLevels: [string, ...string[]] = ['Fácil', 'Normal', 'Difícil'];
 
-export const GenerateQuestionInputSchema = z.object({
+const GenerateQuestionInputSchema = z.object({
   topic: z.string().describe("El tema de anime para la pregunta, por ejemplo, 'Naruto' o 'Studio Ghibli'."),
 });
 export type GenerateQuestionInput = z.infer<typeof GenerateQuestionInputSchema>;
 
-export const GenerateQuestionOutputSchema = z.object({
+const GenerateQuestionOutputSchema = z.object({
   question: z.string().describe('La pregunta de trivia generada.'),
   options: z.array(z.string()).length(4).describe('Un array de 4 posibles respuestas.'),
   answer: z.string().describe('La respuesta correcta de las opciones.'),
