@@ -33,6 +33,24 @@ const nextConfig: NextConfig = {
         hostname: 'i5.walmartimages.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'static0.gamerantimages.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pa1.aminoapps.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'sm.ign.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
