@@ -15,7 +15,8 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
-import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
+import { achievementsList, Achievement } from '@/lib/achievements';
 
 interface User {
   uid: string;
@@ -28,6 +29,12 @@ interface User {
   score_normal?: number;
   score_hard?: number;
   score_survival?: number;
+  unlockedAchievements?: string[];
+}
+
+interface GameStats {
+    score: number;
+    mode: string;
 }
 
 interface AuthContextType {
@@ -38,6 +45,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   updateProfileData: (data: { name?: string, photoURL?: string }) => Promise<void>;
+  checkAndAwardAchievements: (stats: GameStats) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,7 +54,6 @@ const checkNicknameUniqueness = async (name: string, currentUserId?: string): Pr
     const q = query(collection(db, "users"), where("name", "==", name));
     const querySnapshot = await getDocs(q);
     if (querySnapshot.empty) return true;
-    // If nickname exists, check if it belongs to the current user
     if (currentUserId && querySnapshot.docs[0].id === currentUserId) return true;
     return false;
 }
@@ -75,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      setUser({
+      const fullUser: User = {
           uid: firebaseUser.uid,
           name: userData.name || firebaseUser.displayName,
           email: userData.email || firebaseUser.email,
@@ -86,12 +93,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           score_normal: userData.score_normal,
           score_hard: userData.score_hard,
           score_survival: userData.score_survival,
-      });
+          unlockedAchievements: userData.unlockedAchievements || [],
+      }
+      setUser(fullUser);
     } else {
        const { uid, displayName, email, photoURL } = firebaseUser;
        const role = await getUserRole(email);
-       const newUser: User = { uid, name: displayName, email, photoURL, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 };
-       await setDoc(doc(db, "users", uid), { name: displayName, email, photoURL, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 });
+       const newUser: User = { 
+           uid, 
+           name: displayName, 
+           email, 
+           photoURL, 
+           role, 
+           score: 0, 
+           score_easy: 0, 
+           score_normal: 0, 
+           score_hard: 0, 
+           score_survival: 0,
+           unlockedAchievements: [],
+        };
+       await setDoc(doc(db, "users", uid), newUser);
        setUser(newUser);
     }
   }
@@ -169,8 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(firebaseUser, { displayName: name });
         
         const role = await getUserRole(email);
+        const newUser: Omit<User, 'uid'> = { name, email, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0, unlockedAchievements: [] };
 
-        await setDoc(doc(db, "users", firebaseUser.uid), { name, email, role, score: 0, score_easy: 0, score_normal: 0, score_hard: 0, score_survival: 0 });
+        await setDoc(doc(db, "users", firebaseUser.uid), newUser);
 
       },
       'Cuenta creada correctamente. ¡Bienvenido!',
@@ -222,7 +244,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 'Perfil actualizado correctamente.');
   }
 
-  const value = { user, loading, login, logout, loginWithGoogle, signup, updateProfileData };
+  const checkAndAwardAchievements = async (stats: GameStats) => {
+    if (!user) return;
+    
+    const achievementsToAward: Achievement[] = [];
+
+    // Achievement: 'first-points'
+    const firstPointsAchievement = achievementsList.find(a => a.id === 'first-points');
+    if (firstPointsAchievement && !user.unlockedAchievements?.includes('first-points') && stats.score > 0) {
+        achievementsToAward.push(firstPointsAchievement);
+    }
+    
+    // Add logic for other achievements here...
+
+    if (achievementsToAward.length > 0) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const achievementIds = achievementsToAward.map(a => a.id);
+        
+        await updateDoc(userDocRef, {
+            unlockedAchievements: arrayUnion(...achievementIds)
+        });
+        
+        // Update user state locally
+        setUser(prevUser => ({
+            ...prevUser!,
+            unlockedAchievements: [...(prevUser?.unlockedAchievements || []), ...achievementIds]
+        }));
+
+        // Show toast for each new achievement
+        achievementsToAward.forEach(achievement => {
+             toast({
+                title: '🏆 ¡Logro Desbloqueado!',
+                description: `Has conseguido: "${achievement.name}"`
+            });
+        })
+    }
+  }
+
+  const value = { user, loading, login, logout, loginWithGoogle, signup, updateProfileData, checkAndAwardAchievements };
 
   return (
     <AuthContext.Provider value={value}>

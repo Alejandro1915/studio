@@ -10,6 +10,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { useEffect } from 'react';
 import { Skeleton } from '../ui/skeleton';
+import { achievementsList } from '@/lib/achievements';
+import { AchievementCard } from '../achievements/AchievementCard';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'El apodo debe tener al menos 3 caracteres.' }).max(20, { message: 'El apodo no puede tener más de 20 caracteres.' }),
@@ -126,6 +129,21 @@ export function ProfileForm() {
         <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
           {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
         </Button>
+
+        <Separator />
+
+        <div>
+            <h3 className="text-xl font-headline text-primary mb-4">Logros</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {achievementsList.map((achievement) => (
+                    <AchievementCard 
+                        key={achievement.id}
+                        achievement={achievement}
+                        isUnlocked={user.unlockedAchievements?.includes(achievement.id) || false}
+                    />
+                ))}
+            </div>
+        </div>
       </form>
     </Form>
   );

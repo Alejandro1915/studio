@@ -44,7 +44,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
   const randomScore = parseInt(searchParams.get('score') || '0');
   const difficulty = searchParams.get('difficulty') as Difficulty | null;
   const mode = searchParams.get('mode');
-  const { user } = useAuth();
+  const { user, checkAndAwardAchievements } = useAuth();
   const { toast } = useToast();
   
   const isSurvival = gameId === 'survival' || mode === 'survival';
@@ -69,6 +69,8 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
 
           await updateDoc(userRef, updates);
 
+          await checkAndAwardAchievements({ score: randomScore, mode: isSurvival ? 'survival' : difficulty || 'random' });
+
           toast({
             title: "¡Puntuación actualizada!",
             description: `Se han añadido ${randomScore} puntos a tu total.`,
@@ -84,7 +86,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
       };
       updateUserScore();
     }
-  }, [user, randomScore, gameId, toast, isRandom, isSurvival, difficulty]);
+  }, [user, randomScore, gameId, toast, isRandom, isSurvival, difficulty, checkAndAwardAchievements]);
 
   const rankedPlayers = useMemo(() => {
     let allPlayers: { name: string; score: number; isCurrentUser: boolean }[] = [];
