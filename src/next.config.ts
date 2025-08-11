@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
         hostname: 'm.media-amazon.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i5.walmartimages.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
