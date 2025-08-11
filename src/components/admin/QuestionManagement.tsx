@@ -247,13 +247,13 @@ export default function QuestionManagement() {
     if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
     
     try {
-        const questionDoc = doc(db, 'questions', questionId);
-        await deleteDoc(questionDoc);
+        const questionRef = doc(db, 'questions', questionId);
+        await deleteDoc(questionRef);
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la pregunta.' });
-        console.error(error);
+        console.error("Error al eliminar la pregunta:", error);
     }
   }
 
