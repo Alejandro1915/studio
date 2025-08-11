@@ -21,6 +21,24 @@ const nextConfig: NextConfig = {
         hostname: 'www.sopitas.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'm.media-amazon.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i5.walmartimages.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'static0.gamerantimages.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
