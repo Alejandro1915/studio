@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dices, Users, Swords, Trophy, Loader2, Star, Brain, Skull } from "lucide-react";
+import { Dices, Users, Swords, Trophy, Loader2, Star, Brain, Skull, Heart } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -61,6 +61,14 @@ export default function GameLobby() {
             icon: <Skull className="w-8 h-8 text-red-500" />,
             action: () => router.push('/game/random?difficulty=Difícil'),
             cta: "Jugar Difícil",
+            disabled: false,
+        },
+        {
+            title: "Modo Supervivencia",
+            description: "Responde todo lo que puedas con 3 vidas.",
+            icon: <Heart className="w-8 h-8 text-red-500" />,
+            action: () => router.push('/game/survival'),
+            cta: "¡A Sobrevivir!",
             disabled: false,
         },
         {

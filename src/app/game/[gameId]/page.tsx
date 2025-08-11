@@ -29,7 +29,7 @@ export default function GamePage() {
   useEffect(() => {
     if (!gameId) return;
 
-    if (gameId === 'random') {
+    if (gameId === 'random' || gameId === 'survival') {
         setGame(null);
         setLoading(false);
         return;
@@ -60,7 +60,7 @@ export default function GamePage() {
     return <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-4rem)] text-red-500">{error}</div>;
   }
 
-  // Random public match
+  // Random public match or survival mode
   if (!game) {
     return (
         <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">

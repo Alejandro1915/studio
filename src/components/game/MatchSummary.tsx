@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import { Trophy, Home } from 'lucide-react';
+import { Trophy, Home, ShieldAlert } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -43,11 +43,15 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
   const searchParams = useSearchParams();
   const randomScore = parseInt(searchParams.get('score') || '0');
   const difficulty = searchParams.get('difficulty') as Difficulty | null;
+  const mode = searchParams.get('mode');
   const { user } = useAuth();
   const { toast } = useToast();
   
+  const isSurvival = gameId === 'survival' || mode === 'survival';
+  const isRandom = gameId === 'random';
+
   useEffect(() => {
-    if (user && randomScore > 0 && gameId === 'random') {
+    if (user && randomScore > 0 && (isRandom || isSurvival)) {
       const updateUserScore = async () => {
         const userRef = doc(db, 'users', user.uid);
         try {
@@ -69,12 +73,12 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
       };
       updateUserScore();
     }
-  }, [user, randomScore, gameId, toast]);
+  }, [user, randomScore, gameId, toast, isRandom, isSurvival]);
 
   const rankedPlayers = useMemo(() => {
     let allPlayers: { name: string; score: number; isCurrentUser: boolean }[] = [];
 
-    if (gameId === 'random') {
+    if (isRandom) {
       const otherPlayers = getOtherPlayers(difficulty);
       allPlayers = [
         ...otherPlayers.map(p => ({ ...p, isCurrentUser: false })),
@@ -86,7 +90,16 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
           isCurrentUser: true,
         });
       }
-    } else if (finalScores && user) {
+    } else if(isSurvival) {
+        if (user) {
+             allPlayers.push({
+                name: user.name || 'Tú',
+                score: randomScore,
+                isCurrentUser: true,
+            });
+        }
+    }
+    else if (finalScores && user) {
        // This part would be improved by fetching player names from user IDs
       allPlayers = Object.entries(finalScores).map(([uid, score]) => ({
           name: uid === user.uid ? (user.name || 'Tú') : `Jugador...${uid.slice(-4)}`,
@@ -98,19 +111,29 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
     return allPlayers
       .sort((a,b) => b.score - a.score)
       .map((p, i) => ({...p, rank: i + 1}));
-  }, [gameId, finalScores, randomScore, user, difficulty]);
+  }, [gameId, finalScores, randomScore, user, difficulty, isRandom, isSurvival]);
+
+  const cardIcon = isSurvival ? <ShieldAlert className="w-12 h-12 text-primary" /> : <Trophy className="w-12 h-12 text-primary" />;
+  const cardTitle = isSurvival ? '¡Has sido derrotado!' : '¡Partida Terminada!';
+  const cardDescription = isSurvival ? 'Te quedaste sin vidas. Esta es tu puntuación final.' : 'Estos son los resultados finales de la partida';
 
 
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader className="text-center">
         <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
-            <Trophy className="w-12 h-12 text-primary" />
+            {cardIcon}
         </div>
-        <CardTitle className="text-4xl font-headline text-primary">¡Partida Terminada!</CardTitle>
-        <CardDescription className="text-lg">Estos son los resultados finales de la partida</CardDescription>
+        <CardTitle className="text-4xl font-headline text-primary">{cardTitle}</CardTitle>
+        <CardDescription className="text-lg">{cardDescription}</CardDescription>
       </CardHeader>
       <CardContent>
+        {isSurvival && user ? (
+             <div className="text-center">
+                <p className="text-xl">Puntuación Final</p>
+                <p className="text-5xl font-bold font-mono text-primary my-2">{randomScore}</p>
+             </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -129,6 +152,7 @@ export default function MatchSummary({ gameId, finalScores }: { gameId: string, 
             ))}
           </TableBody>
         </Table>
+        )}
       </CardContent>
       <CardFooter>
         <Button asChild className="w-full" size="lg">

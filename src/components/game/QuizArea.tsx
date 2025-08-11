@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion, Heart } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { collection, getDocs, doc, updateDoc, arrayUnion, getDoc, setDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, Difficulty } from '../admin/QuestionManagement';
 import { Badge } from '../ui/badge';
@@ -17,7 +17,8 @@ import { useAuth } from '@/hooks/use-auth';
 import type { Game } from '@/app/game/[gameId]/page';
 
 const TIME_PER_QUESTION = 15; // segundos
-const TOTAL_QUESTIONS = 10;
+const TOTAL_QUESTIONS_RANDOM = 10;
+const INITIAL_LIVES = 3;
 
 const shuffleArray = (array: any[]) => {
   const newArray = [...array];
@@ -49,12 +50,14 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   const [timeLeft, setTimeLeft] = useState(TIME_PER_QUESTION);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [lives, setLives] = useState(INITIAL_LIVES);
+  
+  const isSurvivalMode = gameId === 'survival';
 
   useEffect(() => {
     const setupGame = async () => {
       try {
         if (gameId === 'random') {
-          // Public match: fetch random questions based on difficulty
           const difficulty = searchParams.get('difficulty') as Difficulty | null;
           const questionsRef = collection(db, 'questions');
           
@@ -62,23 +65,42 @@ export default function QuizArea({ gameId }: { gameId: string }) {
           if (difficulty && ['Fácil', 'Normal', 'Difícil'].includes(difficulty)) {
             q = query(questionsRef, where('difficulty', '==', difficulty));
           } else {
-            q = query(questionsRef); // Fallback to all questions if no difficulty
+            q = query(questionsRef);
           }
           
           const querySnapshot = await getDocs(q);
           const allQuestions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
           
           if (allQuestions.length === 0) {
-              console.warn(`No questions found for difficulty: ${difficulty}. Fetching any questions.`);
               const allDocsSnapshot = await getDocs(collection(db, 'questions'));
               const fallbackQuestions = allDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
-              setQuestions(shuffleArray(fallbackQuestions).slice(0, TOTAL_QUESTIONS));
+              setQuestions(shuffleArray(fallbackQuestions).slice(0, TOTAL_QUESTIONS_RANDOM));
           } else {
-            setQuestions(shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS));
+            setQuestions(shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS_RANDOM));
           }
-          setCurrentQuestionIndex(0);
+        } else if (isSurvivalMode) {
+          const easyQuery = query(collection(db, 'questions'), where('difficulty', '==', 'Fácil'), limit(5));
+          const normalQuery = query(collection(db, 'questions'), where('difficulty', '==', 'Normal'), limit(10));
+          const hardQuery = query(collection(db, 'questions'), where('difficulty', '==', 'Difícil'), limit(15));
+          
+          const [easySnapshot, normalSnapshot, hardSnapshot] = await Promise.all([
+            getDocs(easyQuery),
+            getDocs(normalQuery),
+            getDocs(hardQuery)
+          ]);
+
+          const easyQuestions = easySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+          const normalQuestions = normalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+          const hardQuestions = hardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Question));
+
+          setQuestions([
+              ...shuffleArray(easyQuestions), 
+              ...shuffleArray(normalQuestions), 
+              ...shuffleArray(hardQuestions)
+            ]);
+
         } else {
-          // Private match: fetch game data
+          // Private match logic remains the same
           const gameRef = doc(db, 'games', gameId);
           const gameSnap = await getDoc(gameRef);
           if (gameSnap.exists()) {
@@ -86,8 +108,6 @@ export default function QuizArea({ gameId }: { gameId: string }) {
             setGame(gameData);
             setQuestions(gameData.questions || []);
             setCurrentQuestionIndex(gameData.currentQuestionIndex || 0);
-
-            // Set initial score for the current user if it exists in the game data
             if (user && gameData.scores && gameData.scores[user.uid]) {
               setScore(gameData.scores[user.uid]);
             }
@@ -100,7 +120,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       }
     };
     setupGame();
-  }, [gameId, user, searchParams]);
+  }, [gameId, user, searchParams, isSurvivalMode]);
 
   const currentQuestion = questions[currentQuestionIndex];
   
@@ -111,11 +131,33 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     return [];
   }, [currentQuestion]);
 
+  const handleIncorrectAnswer = () => {
+    if (isSurvivalMode) {
+        setLives(prev => prev - 1);
+        if (lives - 1 <= 0) {
+            endGame();
+        }
+    }
+  }
+
+  const endGame = () => {
+    const difficulty = searchParams.get('difficulty');
+    const mode = isSurvivalMode ? 'survival' : (difficulty ? `random&difficulty=${difficulty}` : 'random');
+
+    if (gameId !== 'random' && !isSurvivalMode) {
+      const gameRef = doc(db, 'games', gameId);
+      updateDoc(gameRef, { status: 'finished' });
+    } else {
+      router.push(`/summary/${gameId}?score=${score}${isSurvivalMode ? '&mode=survival' : (difficulty ? `&difficulty=${difficulty}` : '')}`);
+    }
+  }
+
   useEffect(() => {
     if (isAnswered || loading || !currentQuestion) return;
     if (timeLeft === 0) {
-      setIsAnswered(true); // Mark as answered to show feedback
-      setSelectedAnswer(null); // No answer was selected
+      setIsAnswered(true);
+      setSelectedAnswer(null);
+      handleIncorrectAnswer();
       setTimeout(nextQuestion, 2000);
       return;
     }
@@ -135,9 +177,11 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     if (answer === currentQuestion.answer) {
       points = 100 + timeLeft * 10;
       setScore((prev) => prev + points);
+    } else {
+        handleIncorrectAnswer();
     }
     
-    if (gameId !== 'random' && user) {
+    if (gameId !== 'random' && !isSurvivalMode && user) {
         const gameRef = doc(db, 'games', gameId);
         const newScores = { ...game?.scores, [user.uid]: (score + points) };
         await updateDoc(gameRef, { scores: newScores });
@@ -147,9 +191,13 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   };
 
   const nextQuestion = async () => {
+    if (isSurvivalMode && lives <= 1 && selectedAnswer !== currentQuestion.answer && timeLeft === 0) {
+        return; // Don't advance if it's the last life and answer was wrong
+    }
+
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex < questions.length) {
-      if (gameId !== 'random') {
+      if (gameId !== 'random' && !isSurvivalMode) {
         const gameRef = doc(db, 'games', gameId);
         await updateDoc(gameRef, { currentQuestionIndex: nextIndex });
       }
@@ -158,13 +206,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setSelectedAnswer(null);
       setIsAnswered(false);
     } else {
-       const difficulty = searchParams.get('difficulty');
-      if (gameId !== 'random') {
-        const gameRef = doc(db, 'games', gameId);
-        await updateDoc(gameRef, { status: 'finished' });
-      } else {
-        router.push(`/summary/${gameId}?score=${score}${difficulty ? `&difficulty=${difficulty}`: ''}`);
-      }
+        endGame();
     }
   };
 
@@ -197,7 +239,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       )
   }
   
-  if(!currentQuestion) {
+  if(!currentQuestion && !loading) {
       return (
           <Card className="w-full max-w-4xl shadow-2xl shadow-primary/10">
               <CardHeader>
@@ -222,7 +264,16 @@ export default function QuizArea({ gameId }: { gameId: string }) {
                     {currentQuestion.difficulty}
                 </Badge>
             </div>
-          <div className="text-2xl font-bold text-accent">{score} pts</div>
+            <div className="flex items-center gap-4">
+                {isSurvivalMode && (
+                    <div className="flex items-center gap-1">
+                        {Array.from({ length: INITIAL_LIVES }).map((_, i) => (
+                           <Heart key={i} className={cn("w-6 h-6 text-red-500 transition-colors", i < lives ? 'fill-red-500' : 'fill-none opacity-50')} />
+                        ))}
+                    </div>
+                )}
+                <div className="text-2xl font-bold text-accent">{score} pts</div>
+            </div>
         </div>
         <Progress value={(timeLeft / TIME_PER_QUESTION) * 100} className="w-full h-2" />
         <div className="flex items-center justify-center text-lg text-muted-foreground mt-2">
