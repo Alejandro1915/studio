@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { PlusCircle, Edit, Trash2 } from 'lucide-react'
+import { PlusCircle, Edit, Trash2, MoreVertical } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '../ui/input'
 import { useForm } from 'react-hook-form'
@@ -17,6 +17,14 @@ import { RadioGroup, RadioGroupItem } from '../ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Badge } from '../ui/badge'
 import { cn } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 
 export type Difficulty = 'Fácil' | 'Normal' | 'Difícil';
 
@@ -203,17 +211,28 @@ const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEd
     return (
         <div className="border p-4 rounded-lg flex justify-between items-center gap-4">
             <p className="font-medium flex-1">{question.question}</p>
-             <Badge variant={getDifficultyBadgeVariant(question.difficulty)} className="whitespace-nowrap">
+            <Badge variant={getDifficultyBadgeVariant(question.difficulty)} className="whitespace-nowrap">
                 {question.difficulty}
             </Badge>
-            <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(question)}>
-                    <Edit className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(question.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MoreVertical className="w-4 h-4" />
+                        <span className="sr-only">Abrir menú</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit(question)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Editar</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onDelete(question.id)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Eliminar</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 };
