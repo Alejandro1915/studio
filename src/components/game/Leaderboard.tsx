@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Trophy, Loader2, Medal, Star, Brain, Skull, Heart } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
@@ -27,12 +29,17 @@ const RankIcon = ({ rank }: { rank: number }) => {
 }
 
 const LeaderboardTable = ({ users, scoreField, currentUser }: { users: User[], scoreField: keyof User, currentUser: any }) => {
+    const router = useRouter();
     const sortedUsers = [...users]
         .filter(u => (u[scoreField] || 0) > 0)
         .sort((a, b) => (b[scoreField] || 0) - (a[scoreField] || 0));
 
     if (sortedUsers.length === 0) {
         return <p className="text-center text-muted-foreground py-8">Nadie ha jugado en este modo todavía. ¡Sé el primero!</p>
+    }
+    
+    const handleRowClick = (userId: string) => {
+        router.push(`/profile/${userId}`);
     }
 
     return (
@@ -46,7 +53,11 @@ const LeaderboardTable = ({ users, scoreField, currentUser }: { users: User[], s
             </TableHeader>
             <TableBody>
                 {sortedUsers.map((user, index) => (
-                <TableRow key={user.id} className={currentUser?.uid === user.id ? 'bg-primary/20 hover:bg-primary/30' : ''}>
+                <TableRow 
+                    key={user.id} 
+                    className={`cursor-pointer ${currentUser?.uid === user.id ? 'bg-primary/20 hover:bg-primary/30' : 'hover:bg-muted/50'}`}
+                    onClick={() => handleRowClick(user.id)}
+                >
                     <TableCell className="font-bold text-xl text-center">
                         <div className='flex items-center justify-center'>
                             <RankIcon rank={index + 1} />

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
-import { LogOut, User as UserIcon, Shield } from 'lucide-react';
+import { LogOut, User as UserIcon, Shield, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '../ui/skeleton';
 
@@ -53,9 +53,15 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-             <Link href="/profile">
+             <Link href={`/profile/${user.uid}`}>
                 <UserIcon className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
+                <span>Ver Perfil</span>
+             </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+             <Link href="/profile/edit">
+                <Edit className="mr-2 h-4 w-4" />
+                <span>Editar Perfil</span>
              </Link>
           </DropdownMenuItem>
           {user.role === 'admin' && (
