@@ -263,8 +263,6 @@ export default function QuestionManagement() {
   }, []);
 
   const handleDelete = async (questionId: string) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esto no se puede deshacer.")) return;
-    
     try {
         const questionRef = doc(db, 'questions', questionId);
         await deleteDoc(questionRef);
