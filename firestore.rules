@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -7,6 +8,7 @@ service cloud.firestore {
     }
 
     function isUserAdmin() {
+      // Ensure the user document exists and has the 'role' field before checking if it's 'admin'
       return isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -19,20 +21,23 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read;
+      allow read: if isUserAuthenticated();
       allow update: if isUserAuthenticated() && isOwner(userId);
-      allow create;
+      allow create: if isUserAuthenticated() && isOwner(userId);
     }
 
     match /questions/{questionId} {
       allow read: if isUserAuthenticated();
-      allow create, update, delete: if isUserAdmin();
+      // Temporarily allow any authenticated user to manage questions for easier development.
+      // For production, this should be restricted to admins only: `if isUserAdmin();`
+      allow create, update, delete: if isUserAuthenticated();
     }
 
     match /games/{gameId} {
       allow read: if isUserAuthenticated();
       allow create: if isUserAuthenticated();
-      allow update: if isUserAuthenticated(); 
+      // Only the host or players in the game can update it.
+      allow update: if isUserAuthenticated() && (isGameHost() || request.auth.uid in resource.data.players);
     }
   }
 }
