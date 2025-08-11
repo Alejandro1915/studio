@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
         hostname: 'static0.gamerantimages.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pa1.aminoapps.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
