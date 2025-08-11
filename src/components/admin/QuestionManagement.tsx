@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { PlusCircle, Edit, Trash2, MoreVertical } from 'lucide-react'
+import { PlusCircle, Edit, Trash2, MoreVertical, Sparkles, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '../ui/input'
 import { useForm } from 'react-hook-form'
@@ -24,6 +24,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import Image from 'next/image'
+import { generateQuestion, GenerateQuestionOutput } from '@/ai/flows/generate-question-flow'
+import { Textarea } from '../ui/textarea'
 
 
 export type Difficulty = 'Fácil' | 'Normal' | 'Difícil';
@@ -54,19 +57,25 @@ const questionSchema = z.object({
 });
 
 
-const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question | null, onSave: () => void, onOpenChange: (open: boolean) => void }) => {
+const QuestionForm = ({ question, onSave, onOpenChange, generatedData }: { question?: Question | null, onSave: () => void, onOpenChange: (open: boolean) => void, generatedData?: GenerateQuestionOutput | null }) => {
     const { toast } = useToast();
     const form = useForm<z.infer<typeof questionSchema>>({
         resolver: zodResolver(questionSchema),
-        defaultValues: question ? { ...question } : {
+        defaultValues: generatedData || (question ? { ...question } : {
             question: '',
             options: ['', '', '', ''],
             answer: '',
             difficulty: 'Normal',
             image: ''
-        },
+        }),
         mode: 'onChange'
     });
+    
+    useEffect(() => {
+      if (generatedData) {
+        form.reset(generatedData)
+      }
+    }, [generatedData, form]);
 
     const watchedOptions = form.watch('options');
 
@@ -107,7 +116,7 @@ const QuestionForm = ({ question, onSave, onOpenChange }: { question?: Question 
                     <FormField control={form.control} name="question" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Pregunta</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
+                            <FormControl><Textarea {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
@@ -210,6 +219,11 @@ const getDifficultyBadgeVariant = (difficulty: Difficulty) => {
 const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEdit: (question: Question) => void, onDelete: (id: string) => void }) => {
     return (
         <div className="border p-4 rounded-lg flex justify-between items-center gap-4">
+             {question.image && (
+                <div className="relative w-20 h-[45px] rounded-md overflow-hidden flex-shrink-0">
+                    <Image src={question.image} alt="Vista previa de la pregunta" layout="fill" objectFit="cover" data-ai-hint="question preview" />
+                </div>
+            )}
             <p className="font-medium flex-1">{question.question}</p>
             <Badge variant={getDifficultyBadgeVariant(question.difficulty)} className="whitespace-nowrap">
                 {question.difficulty}
@@ -237,12 +251,58 @@ const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEd
     );
 };
 
+const GenerateQuestionDialog = ({ onQuestionGenerated }: { onQuestionGenerated: (data: GenerateQuestionOutput) => void }) => {
+    const [topic, setTopic] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const handleGenerate = async () => {
+        if (!topic) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Por favor, introduce un tema.' });
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const result = await generateQuestion({ topic });
+            onQuestionGenerated(result);
+        } catch (error) {
+            console.error("Error generating question:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la pregunta.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Generar Pregunta con IA</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+                <p>Introduce un tema de anime (p. ej., "Naruto", "Studio Ghibli") y la IA creará una pregunta de trivia para ti.</p>
+                <Input
+                    placeholder="Tema del anime..."
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    disabled={isLoading}
+                />
+                <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Sparkles className="mr-2" />}
+                    {isLoading ? 'Generando...' : 'Generar Pregunta'}
+                </Button>
+            </div>
+        </DialogContent>
+    );
+};
+
 
 export default function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isQuestionFormOpen, setIsQuestionFormOpen] = useState(false);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [generatedData, setGeneratedData] = useState<GenerateQuestionOutput | null>(null);
   const { toast } = useToast();
 
   const fetchQuestions = async () => {
@@ -264,8 +324,7 @@ export default function QuestionManagement() {
 
   const handleDelete = async (questionId: string) => {
     try {
-        const questionRef = doc(db, 'questions', questionId);
-        await deleteDoc(questionRef);
+        await deleteDoc(doc(db, 'questions', questionId));
         toast({ title: "Éxito", description: "Pregunta eliminada correctamente." });
         setQuestions(prevQuestions => prevQuestions.filter(q => q.id !== questionId));
     } catch (error) {
@@ -276,25 +335,36 @@ export default function QuestionManagement() {
 
   const handleAddClick = () => {
       setSelectedQuestion(null);
-      setIsDialogOpen(true);
+      setGeneratedData(null);
+      setIsQuestionFormOpen(true);
   }
 
   const handleEditClick = (question: Question) => {
       setSelectedQuestion(question);
-      setIsDialogOpen(true);
+      setGeneratedData(null);
+      setIsQuestionFormOpen(true);
   }
 
   const handleDialogSave = () => {
     fetchQuestions();
-    setIsDialogOpen(false);
+    setIsQuestionFormOpen(false);
     setSelectedQuestion(null);
+    setGeneratedData(null);
   }
   
-  const handleDialogChange = (open: boolean) => {
-      setIsDialogOpen(open);
+  const handleQuestionFormOpenChange = (open: boolean) => {
+      setIsQuestionFormOpen(open);
       if(!open) {
           setSelectedQuestion(null);
+          setGeneratedData(null);
       }
+  }
+
+  const handleQuestionGenerated = (data: GenerateQuestionOutput) => {
+      setGeneratedData(data);
+      setIsGenerateDialogOpen(false);
+      setSelectedQuestion(null); // Ensure we are in "add" mode
+      setIsQuestionFormOpen(true);
   }
 
   return (
@@ -304,15 +374,27 @@ export default function QuestionManagement() {
             <CardTitle>Gestión de Preguntas</CardTitle>
             <CardDescription>Añade, edita o elimina las preguntas del quiz.</CardDescription>
         </div>
-         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-            <DialogTrigger asChild>
-                <Button onClick={handleAddClick}>
-                    <PlusCircle className="mr-2" />
-                    Añadir Pregunta
-                </Button>
-            </DialogTrigger>
-            {isDialogOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onOpenChange={handleDialogChange}/>}
-        </Dialog>
+        <div className="flex gap-2">
+            <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline">
+                        <Sparkles className="mr-2" />
+                        Generar con IA
+                    </Button>
+                </DialogTrigger>
+                <GenerateQuestionDialog onQuestionGenerated={handleQuestionGenerated} />
+            </Dialog>
+
+            <Dialog open={isQuestionFormOpen} onOpenChange={handleQuestionFormOpenChange}>
+                <DialogTrigger asChild>
+                    <Button onClick={handleAddClick}>
+                        <PlusCircle className="mr-2" />
+                        Añadir Pregunta
+                    </Button>
+                </DialogTrigger>
+                {isQuestionFormOpen && <QuestionForm question={selectedQuestion} onSave={handleDialogSave} onOpenChange={handleQuestionFormOpenChange} generatedData={generatedData} />}
+            </Dialog>
+         </div>
       </CardHeader>
       <CardContent>
         {loading ? (
