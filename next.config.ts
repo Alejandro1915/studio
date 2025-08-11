@@ -45,6 +45,18 @@ const nextConfig: NextConfig = {
         hostname: 'pa1.aminoapps.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'sm.ign.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pm1.aminoapps.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
