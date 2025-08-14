@@ -27,6 +27,7 @@ import {
 import Image from 'next/image'
 import { generateQuestion, GenerateQuestionOutput } from '@/ai/flows/generate-question-flow'
 import { Textarea } from '../ui/textarea'
+import { Label } from '../ui/label'
 
 
 export type Difficulty = 'Fácil' | 'Normal' | 'Difícil';
