@@ -373,11 +373,20 @@ export default function QuestionManagement() {
     difficultyFilter === 'all' || q.difficulty === difficultyFilter
   );
 
+  const getTitleText = () => {
+    const total = questions.length;
+    const showing = filteredQuestions.length;
+    if (total === showing) {
+      return `Gestión de Preguntas (${total})`;
+    }
+    return `Gestión de Preguntas (Mostrando ${showing} de ${total})`;
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-            <CardTitle>Gestión de Preguntas</CardTitle>
+            <CardTitle>{getTitleText()}</CardTitle>
             <CardDescription>Añade, edita o elimina las preguntas del quiz.</CardDescription>
         </div>
         <div className="flex gap-2">
