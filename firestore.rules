@@ -1,48 +1,34 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper function to check for admin role
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check if the user is authenticated and if their user document shows they are an admin.
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Questions can be read by any authenticated user, but only managed by admins.
+    // Questions can be read by any authenticated user, but only modified by admins.
     match /questions/{questionId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Users collection rules
+    // User profiles can be read by anyone, but a user can only write to their own document.
     match /users/{userId} {
-      // Anyone authenticated can view user profiles (for leaderboards, etc.)
-      allow read: if request.auth != null;
-      
-      // A user can create their own profile upon signup
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // A user can only update their own profile data.
-      allow update: if request.auth != null && request.auth.uid == userId;
-
-      // Deletion of users is not allowed from the client.
-      allow delete: if false;
+      allow read: if true;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Do not allow user profile deletion from client.
     }
 
-    // Game collection rules
+    // Games can be created by any authenticated user.
+    // Players in the game can read/update it while it's in progress.
     match /games/{gameId} {
-        // Any authenticated user can create a game room.
-        allow create: if request.auth != null;
-
-        // Only players who are part of the game can read it.
-        allow read: if request.auth != null && resource.data.players.exists(p, p.uid == request.auth.uid);
-
-        // Only players who are part of the game can update it (e.g., join, update score).
-        allow update: if request.auth != null && resource.data.players.exists(p, p.uid == request.auth.uid);
-        
-        // Deletion of games is not allowed from the client.
-        allow delete: if false;
+      allow read, update: if request.auth != null && (
+                            resource.data.hostId == request.auth.uid ||
+                            request.auth.uid in resource.data.playerIds
+                          );
+      allow create: if request.auth != null;
     }
   }
 }
