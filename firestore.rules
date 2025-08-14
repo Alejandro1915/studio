@@ -4,36 +4,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Reglas para la colección 'users'
-    match /users/{userId} {
-      // Cualquiera puede leer los perfiles (para la tabla de clasificación)
+    // Helper function to check for admin role
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Questions can be read by any authenticated user, but only managed by admins.
+    match /questions/{questionId} {
       allow read: if request.auth != null;
-      // Un usuario solo puede crear su propio perfil
-      allow create: if request.auth.uid == userId;
-      // Un usuario solo puede actualizar su propio perfil (nombre, foto)
-      allow update: if request.auth.uid == userId && request.resource.data.keys().hasAll(['name', 'photoURL']);
-      // Nadie puede eliminar usuarios desde el cliente
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      // Anyone authenticated can view user profiles (for leaderboards, etc.)
+      allow read: if request.auth != null;
+      
+      // A user can create their own profile upon signup
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // A user can only update their own profile data.
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Deletion of users is not allowed from the client.
       allow delete: if false;
     }
 
-    // Reglas para la colección 'questions'
-    match /questions/{questionId} {
-        // Cualquiera puede leer las preguntas para jugar
-        allow read: if request.auth != null;
-        // Solo los administradores pueden crear, actualizar y eliminar preguntas
-        allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Reglas para la colección 'games'
+    // Game collection rules
     match /games/{gameId} {
-        // Cualquiera puede leer las partidas
-        allow read: if request.auth != null;
-        // Cualquiera puede crear una partida
+        // Any authenticated user can create a game room.
         allow create: if request.auth != null;
-        // Solo un jugador de la partida puede actualizarla
-        allow update: if request.auth != null && request.auth.uid in resource.data.players.map(p => p.uid);
-        // El anfitrión puede eliminar la sala de espera
-        allow delete: if request.auth != null && request.auth.uid == resource.data.hostId;
+
+        // Only players who are part of the game can read it.
+        allow read: if request.auth != null && resource.data.players.exists(p, p.uid == request.auth.uid);
+
+        // Only players who are part of the game can update it (e.g., join, update score).
+        allow update: if request.auth != null && resource.data.players.exists(p, p.uid == request.auth.uid);
+        
+        // Deletion of games is not allowed from the client.
+        allow delete: if false;
     }
   }
 }
