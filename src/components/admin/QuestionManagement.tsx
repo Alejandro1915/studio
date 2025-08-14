@@ -221,7 +221,7 @@ const QuestionItem = ({ question, onEdit, onDelete }: { question: Question, onEd
         <div className="border p-4 rounded-lg flex justify-between items-center gap-4">
              {question.image && (
                 <div className="relative w-20 h-[45px] rounded-md overflow-hidden flex-shrink-0">
-                    <Image src={question.image} alt="Vista previa de la pregunta" layout="fill" objectFit="cover" data-ai-hint="question preview" />
+                    <Image src={question.image} alt="Vista previa de la pregunta" fill objectFit="cover" data-ai-hint="question preview" />
                 </div>
             )}
             <p className="font-medium flex-1">{question.question}</p>
@@ -303,6 +303,7 @@ export default function QuestionManagement() {
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [generatedData, setGeneratedData] = useState<GenerateQuestionOutput | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'all'>('all');
   const { toast } = useToast();
 
   const fetchQuestions = async () => {
@@ -366,6 +367,10 @@ export default function QuestionManagement() {
       setSelectedQuestion(null); // Ensure we are in "add" mode
       setIsQuestionFormOpen(true);
   }
+  
+  const filteredQuestions = questions.filter(q => 
+    difficultyFilter === 'all' || q.difficulty === difficultyFilter
+  );
 
   return (
     <Card>
@@ -397,11 +402,28 @@ export default function QuestionManagement() {
          </div>
       </CardHeader>
       <CardContent>
+         <div className="mb-6">
+            <Label htmlFor="difficulty-filter">Filtrar por dificultad</Label>
+            <Select 
+                value={difficultyFilter} 
+                onValueChange={(value) => setDifficultyFilter(value as Difficulty | 'all')}
+            >
+                <SelectTrigger id="difficulty-filter" className="w-[180px]">
+                    <SelectValue placeholder="Filtrar por dificultad" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Mostrar Todas</SelectItem>
+                    <SelectItem value="Fácil">Fácil</SelectItem>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="Difícil">Difícil</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
         {loading ? (
             <p>Cargando preguntas...</p>
         ) : (
             <div className="space-y-4">
-                {questions.map((q) => (
+                {filteredQuestions.map((q) => (
                     <QuestionItem 
                         key={q.id}
                         question={q}
