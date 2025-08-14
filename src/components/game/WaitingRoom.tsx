@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, arrayUnion, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, collection, getDocs, serverTimestamp } from 'firebase/firestore';
 import type { Game } from '@/app/game/[gameId]/page';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Users, Play } from 'lucide-react';
+import { Copy, Users, Play, UserPlus } from 'lucide-react';
 
 const TOTAL_QUESTIONS = 10;
 
@@ -34,7 +34,7 @@ export default function WaitingRoom({ game }: { game: Game }) {
 
     useEffect(() => {
         const joinGame = async () => {
-            if (user && !isPlayerInGame) {
+            if (user && !isPlayerInGame && game.players.length < 2) {
                 const gameRef = doc(db, 'games', game.id);
                 try {
                     await updateDoc(gameRef, {
@@ -49,7 +49,7 @@ export default function WaitingRoom({ game }: { game: Game }) {
             }
         };
         joinGame();
-    }, [user, isPlayerInGame, game.id, router, toast]);
+    }, [user, isPlayerInGame, game.id, router, toast, game.players.length]);
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(window.location.href);
@@ -60,7 +60,6 @@ export default function WaitingRoom({ game }: { game: Game }) {
         if (!canStart || !isHost) return;
 
         try {
-            // Fetch questions and add them to the game
             const querySnapshot = await getDocs(collection(db, 'questions'));
             const allQuestions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const gameQuestions = shuffleArray(allQuestions).slice(0, TOTAL_QUESTIONS);
@@ -76,6 +75,7 @@ export default function WaitingRoom({ game }: { game: Game }) {
                 questions: gameQuestions,
                 currentQuestionIndex: 0,
                 scores: initialScores,
+                startedAt: serverTimestamp(),
             });
         } catch(error) {
             console.error("Error starting game:", error);
@@ -103,17 +103,25 @@ export default function WaitingRoom({ game }: { game: Game }) {
                 </div>
                 <div className="space-y-4">
                     <h3 className="text-center text-xl font-semibold">Jugadores Conectados ({game.players.length}/2)</h3>
-                     <div className="flex justify-center items-center gap-8 p-4 bg-muted/50 rounded-lg">
+                     <div className="flex justify-center items-start gap-8 p-4 bg-muted/50 rounded-lg min-h-[140px]">
                         {game.players.map(player => (
-                            <div key={player.uid} className="flex flex-col items-center gap-2">
+                            <div key={player.uid} className="flex flex-col items-center gap-2 text-center w-24">
                                 <Avatar className="w-20 h-20 border-4 border-primary/50">
                                     <AvatarImage src={player.photoURL || undefined} />
                                     <AvatarFallback>{player.name?.[0].toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-semibold text-lg">{player.name}</span>
+                                <span className="font-semibold text-lg truncate w-full">{player.name}</span>
                                 {player.uid === game.hostId && <span className="text-xs text-primary font-bold">(Anfitrión)</span>}
                             </div>
                         ))}
+                        {game.players.length < 2 && (
+                             <div className="flex flex-col items-center gap-2 text-center w-24">
+                                <Avatar className="w-20 h-20 border-4 border-dashed border-muted-foreground/50 flex items-center justify-center bg-muted">
+                                    <UserPlus className="w-10 h-10 text-muted-foreground" />
+                                </Avatar>
+                                <span className="font-semibold text-lg text-muted-foreground">Esperando...</span>
+                            </div>
+                        )}
                      </div>
                 </div>
             </CardContent>
