@@ -1,42 +1,39 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    match /users/{userId} {
-      // Perfiles públicos: cualquiera puede leerlos.
-      allow read: if true;
-      
-      // Un usuario solo puede crear o modificar su propio perfil.
-      allow update: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-    }
-    
+
+    // Questions: Allow reads for any authenticated user, but only admins can write.
     match /questions/{questionId} {
-      // Cualquiera autenticado puede leer preguntas.
       allow read: if request.auth != null;
-      
-      // Solo los admins pueden crear, editar o borrar preguntas.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // Users: Anyone can read profiles. Users can only create/update their own profile.
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
     
-    match /games/{gameId} {
-      // Un usuario autenticado puede crear una partida si él es el anfitrión.
-      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
-      
-      // Un jugador en la partida puede leerla y actualizarla.
-      allow read, update: if request.auth != null && resource.data.players.exists(p => p.uid == request.auth.uid);
+    // Invitations: Only authenticated users can interact.
+    // User can read/delete their own invitations.
+    // User can create an invitation.
+    match /invitations/{invitationId} {
+      allow read, delete: if request.auth != null && (request.auth.uid == resource.data.toUid || request.auth.uid == resource.data.fromUid);
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.toUid;
     }
 
-    match /invitations/{invitationId} {
-      // El remitente puede crear una invitación.
-      allow create: if request.auth != null && request.resource.data.fromUid == request.auth.uid;
+    // Games: Authenticated users can create games. Only players in the game can read/update it.
+    match /games/{gameId} {
+      
+      // Allow user to create a game if they are the host
+      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
 
-      // El destinatario puede leer la invitación. El remitente también puede leerla para saber el estado.
-      allow read: if request.auth != null && (request.auth.uid == resource.data.toUid || request.auth.uid == resource.data.fromUid);
-
-      // El destinatario puede actualizar la invitación (para aceptarla) o eliminarla (para rechazarla).
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.toUid;
+      // Allow players in the game to read or update it.
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.players;
+      
+      allow delete: if false;
     }
   }
 }
