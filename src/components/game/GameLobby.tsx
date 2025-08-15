@@ -6,37 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dices, Users, Swords, Trophy, Loader2, Star, Brain, Skull, Heart } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { Dialog, DialogContent, DialogTrigger } from "../ui/dialog";
+import InviteFriendDialog from "./InviteFriendDialog";
 
 export default function GameLobby() {
     const { user } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-
-    const handleCreateRoom = async () => {
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para crear una sala.' });
-            return;
-        }
-        setIsCreatingRoom(true);
-        try {
-            const gameRef = await addDoc(collection(db, 'games'), {
-                hostId: user.uid,
-                players: [{ uid: user.uid, name: user.name, photoURL: user.photoURL, score: 0 }],
-                status: 'waiting',
-                createdAt: serverTimestamp(),
-            });
-            router.push(`/game/${gameRef.id}`);
-        } catch (error) {
-            console.error("Error creating game room:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la sala de juego.' });
-            setIsCreatingRoom(false);
-        }
-    };
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
     
     const gameModes = [
         {
@@ -71,23 +51,6 @@ export default function GameLobby() {
             cta: "¡A Sobrevivir!",
             disabled: false,
         },
-        {
-            title: "Desafiar Amigo",
-            description: "Crea una sala privada e invita a un duelo.",
-            icon: <Swords className="w-8 h-8 text-accent" />,
-            action: handleCreateRoom,
-            cta: isCreatingRoom ? "Creando Sala..." : "Crear Sala",
-            disabled: isCreatingRoom,
-            iconAction: isCreatingRoom ? <Loader2 className="w-4 h-4 animate-spin" /> : null
-        },
-        {
-            title: "Clasificación",
-            description: "Compara tu puntaje con los mejores jugadores.",
-            icon: <Trophy className="w-8 h-8 text-yellow-400" />,
-            action: () => router.push('/leaderboard'),
-            cta: "Ver Clasificación",
-            disabled: false,
-        }
     ]
 
     return (
@@ -108,6 +71,42 @@ export default function GameLobby() {
                     </CardContent>
                 </Card>
             ))}
+
+            {/* Special cards for invite and leaderboard */}
+            <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+                <Card className="bg-card/50 hover:bg-card/90 hover:border-primary/50 transition-all duration-300 flex flex-col">
+                    <CardHeader className="flex-row items-center gap-4 space-y-0 pb-4">
+                        <Swords className="w-8 h-8 text-accent" />
+                        <div>
+                            <CardTitle className="font-headline text-2xl">Desafiar Amigo</CardTitle>
+                            <CardDescription>Busca a un jugador y envíale una invitación.</CardDescription>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow flex items-end">
+                        <DialogTrigger asChild>
+                            <Button className="w-full">
+                                Buscar Jugador
+                            </Button>
+                        </DialogTrigger>
+                    </CardContent>
+                </Card>
+                <InviteFriendDialog setIsInviteOpen={setIsInviteOpen} />
+            </Dialog>
+
+            <Card className="bg-card/50 hover:bg-card/90 hover:border-primary/50 transition-all duration-300 flex flex-col">
+                <CardHeader className="flex-row items-center gap-4 space-y-0 pb-4">
+                    <Trophy className="w-8 h-8 text-yellow-400" />
+                    <div>
+                        <CardTitle className="font-headline text-2xl">Clasificación</CardTitle>
+                        <CardDescription>Compara tu puntaje con los mejores.</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-grow flex items-end">
+                    <Button onClick={() => router.push('/leaderboard')} className="w-full">
+                        Ver Clasificación
+                    </Button>
+                </CardContent>
+            </Card>
         </div>
     )
 }
