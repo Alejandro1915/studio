@@ -25,7 +25,8 @@ export default function InviteFriendDialog({ setIsInviteOpen }: { setIsInviteOpe
     const [searchQuery, setSearchQuery] = useState('');
     const [foundUsers, setFoundUsers] = useState<FoundUser[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+    const [invitedUids, setInvitedUids] = useState<string[]>([]);
+
 
     const handleSearch = async () => {
         if (!searchQuery.trim() || !currentUser) return;
@@ -53,26 +54,38 @@ export default function InviteFriendDialog({ setIsInviteOpen }: { setIsInviteOpe
     
     const handleInvite = async (invitedUser: FoundUser) => {
         if (!currentUser) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para crear una sala.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para invitar.' });
             return;
         }
-        setIsCreatingRoom(true);
+        setInvitedUids(prev => [...prev, invitedUser.id]);
+        
         try {
+             // 1. Create the game room
             const gameRef = await addDoc(collection(db, 'games'), {
                 hostId: currentUser.uid,
                 players: [{ uid: currentUser.uid, name: currentUser.name, photoURL: currentUser.photoURL, score: 0 }],
                 status: 'waiting',
                 createdAt: serverTimestamp(),
-                // We could add an 'invites' field here in the future
             });
-            toast({ title: 'Sala Creada', description: 'Redirigiendo a la sala de espera...' });
+
+            // 2. Create the invitation
+            await addDoc(collection(db, 'invitations'), {
+                fromUid: currentUser.uid,
+                fromName: currentUser.name,
+                toUid: invitedUser.id,
+                gameId: gameRef.id,
+                status: 'pending',
+                createdAt: serverTimestamp(),
+            });
+
+            toast({ title: '¡Invitación Enviada!', description: `Se ha enviado un desafío a ${invitedUser.name}. Redirigiendo a la sala...` });
             router.push(`/game/${gameRef.id}`);
             setIsInviteOpen(false);
+
         } catch (error) {
-            console.error("Error creating game room:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la sala de juego.' });
-        } finally {
-            setIsCreatingRoom(false);
+            console.error("Error creating invitation:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo enviar la invitación.' });
+            setInvitedUids(prev => prev.filter(uid => uid !== invitedUser.id));
         }
     }
 
@@ -107,9 +120,9 @@ export default function InviteFriendDialog({ setIsInviteOpen }: { setIsInviteOpe
                                 </Avatar>
                                 <span className="font-bold">{user.name}</span>
                             </div>
-                            <Button size="sm" onClick={() => handleInvite(user)} disabled={isCreatingRoom}>
-                               {isCreatingRoom ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                Invitar
+                            <Button size="sm" onClick={() => handleInvite(user)} disabled={invitedUids.includes(user.id)}>
+                               {invitedUids.includes(user.id) ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                {invitedUids.includes(user.id) ? 'Enviando...' : 'Invitar'}
                             </Button>
                         </div>
                     ))
