@@ -57,21 +57,21 @@ export function UserNav() {
 
       if (accept) {
           try {
-              // First, mark the invitation as accepted
-              await updateDoc(inviteRef, { status: 'accepted' });
-              
-              // Then, add the player to the game
+              // Add the player to the game
               await updateDoc(gameRef, {
                   players: arrayUnion({ uid: user.uid, name: user.name, photoURL: user.photoURL, score: 0 })
               });
               
+              // Delete the invitation since it's been handled
+              await deleteDoc(inviteRef);
+
               toast({ title: "¡Desafío aceptado!", description: "Uniéndote a la partida..." });
               router.push(`/game/${invitation.gameId}`);
           } catch(e) {
               console.error("Error accepting invitation: ", e);
               toast({ variant: 'destructive', title: 'Error', description: 'No se pudo unir a la partida. Puede que ya no exista.'});
-              // Clean up the accepted invite if joining fails
-              await deleteDoc(inviteRef);
+              // Clean up the invite if joining fails
+              await deleteDoc(inviteRef).catch(err => console.error("Failed to cleanup invite", err));
           }
       } else {
           await deleteDoc(inviteRef);
