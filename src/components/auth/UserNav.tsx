@@ -70,10 +70,9 @@ export function UserNav() {
           } catch(e) {
               console.error("Error accepting invitation: ", e);
               toast({ variant: 'destructive', title: 'Error', description: 'No se pudo unir a la partida. Puede que ya no exista.'});
-              // Clean up the invite if joining fails
-              await deleteDoc(inviteRef).catch(err => console.error("Failed to cleanup invite", err));
           }
       } else {
+          // Just delete the invitation if declined
           await deleteDoc(inviteRef);
           toast({ title: 'Invitación Rechazada' });
       }
