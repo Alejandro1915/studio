@@ -1,34 +1,42 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin role
-    function isAdmin() {
-      // Check if the user is authenticated and if their user document shows they are an admin.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Questions can be read by any authenticated user, but only modified by admins.
-    match /questions/{questionId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    // User profiles can be read by anyone, but a user can only write to their own document.
+    
     match /users/{userId} {
+      // Perfiles públicos: cualquiera puede leerlos.
       allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false; // Do not allow user profile deletion from client.
+      
+      // Un usuario solo puede crear o modificar su propio perfil.
+      allow update: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+    }
+    
+    match /questions/{questionId} {
+      // Cualquiera autenticado puede leer preguntas.
+      allow read: if request.auth != null;
+      
+      // Solo los admins pueden crear, editar o borrar preguntas.
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    match /games/{gameId} {
+      // Un usuario autenticado puede crear una partida si él es el anfitrión.
+      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
+      
+      // Un jugador en la partida puede leerla y actualizarla.
+      allow read, update: if request.auth != null && resource.data.players.exists(p => p.uid == request.auth.uid);
     }
 
-    // Games can be created by any authenticated user.
-    // Players in the game can read/update it while it's in progress.
-    match /games/{gameId} {
-      allow read, update: if request.auth != null && (
-                            resource.data.hostId == request.auth.uid ||
-                            request.auth.uid in resource.data.playerIds
-                          );
-      allow create: if request.auth != null;
+    match /invitations/{invitationId} {
+      // El remitente puede crear una invitación.
+      allow create: if request.auth != null && request.resource.data.fromUid == request.auth.uid;
+
+      // El destinatario puede leer la invitación. El remitente también puede leerla para saber el estado.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.toUid || request.auth.uid == resource.data.fromUid);
+
+      // El destinatario puede actualizar la invitación (para aceptarla) o eliminarla (para rechazarla).
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.toUid;
     }
   }
 }
