@@ -11,11 +11,10 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
   updateProfile,
-  AuthErrorCodes,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from './use-toast';
-import { doc, setDoc, getDoc, collection, query, where, getDocs,getCountFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, getCountFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
 import { achievementsList, Achievement } from '@/lib/achievements';
 
 interface User {
@@ -159,12 +158,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push(successPath);
       }
     } catch (error: any) {
-        if (error.code === AuthErrorCodes.EMAIL_EXISTS) {
-            toast({ variant: 'destructive', title: 'Error de Registro', description: 'El correo electrónico ya está en uso. Por favor, intenta iniciar sesión.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        let errorMessage = "Ocurrió un error inesperado.";
+        let errorTitle = "Error";
+
+        // Manejo específico de códigos de error de Firebase Auth
+        switch (error.code) {
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+            errorTitle = "Error de Acceso";
+            errorMessage = "Credenciales inválidas. Por favor, revisa tu correo y contraseña.";
+            break;
+          case 'auth/email-already-in-use':
+            errorTitle = "Error de Registro";
+            errorMessage = "El correo electrónico ya está en uso. Por favor, intenta iniciar sesión.";
+            break;
+          case 'auth/weak-password':
+            errorTitle = "Contraseña Débil";
+            errorMessage = "La contraseña debe tener al menos 6 caracteres.";
+            break;
+          case 'auth/popup-closed-by-user':
+            errorTitle = "Operación Cancelada";
+            errorMessage = "La ventana de acceso se cerró antes de completar el proceso.";
+            break;
+          case 'auth/too-many-requests':
+            errorTitle = "Acceso Bloqueado";
+            errorMessage = "Demasiados intentos fallidos. Por favor, inténtalo más tarde.";
+            break;
+          default:
+            errorMessage = error.message;
         }
-        throw error;
+
+        toast({ 
+          variant: 'destructive', 
+          title: errorTitle, 
+          description: errorMessage 
+        });
+
+        // No relanzamos el error para evitar la pantalla de Runtime Error de Next.js
+        // ya que el usuario ha sido notificado mediante el toast.
     }
   };
 
@@ -219,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfileData = async (data: { name?: string, photoURL?: string }) => {
       const firebaseUser = auth.currentUser;
-      if (!firebaseUser) throw new Error("No hay un usuario autenticado.");
+      if (!firebaseUser) return;
 
       if (data.name) {
           const isNicknameUnique = await checkNicknameUniqueness(data.name, firebaseUser.uid);
