@@ -1,11 +1,13 @@
 import UserProfile from "@/components/auth/UserProfile";
 import { Suspense } from "react";
 
-export default function UserProfilePage({ params }: { params: { userId: string } }) {
+export default async function UserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  
   return (
     <div className="container mx-auto p-4 md:p-8">
       <Suspense fallback={<div>Cargando perfil...</div>}>
-        <UserProfile userId={params.userId} />
+        <UserProfile userId={userId} />
       </Suspense>
     </div>
   );
