@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Trophy, Loader2, Medal, Star, Brain, Skull, Heart } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -17,9 +16,11 @@ interface User {
   name: string;
   photoURL?: string;
   score: number;
+  score_easy?: number;
+  score_normal?: number;
+  score_hard?: number;
+  score_survival?: number;
 }
-
-type LeaderboardMode = 'global' | 'easy' | 'normal' | 'hard' | 'survival';
 
 const RankIcon = ({ rank }: { rank: number }) => {
     if (rank === 1) return <Medal className="w-7 h-7 text-yellow-400" />;
@@ -31,8 +32,15 @@ const RankIcon = ({ rank }: { rank: number }) => {
 const LeaderboardTable = ({ users, scoreField, currentUser }: { users: User[], scoreField: keyof User, currentUser: any }) => {
     const router = useRouter();
     const sortedUsers = [...users]
-        .filter(u => (u[scoreField] as number || 0) > 0)
-        .sort((a, b) => (b[scoreField] as number || 0) - (a[scoreField] as number || 0));
+        .filter(u => {
+            const val = u[scoreField];
+            return typeof val === 'number' && val > 0;
+        })
+        .sort((a, b) => {
+            const valA = a[scoreField] as number || 0;
+            const valB = b[scoreField] as number || 0;
+            return valB - valA;
+        });
 
     if (sortedUsers.length === 0) {
         return <p className="text-center text-muted-foreground py-8">Nadie ha jugado en este modo todavía. ¡Sé el primero!</p>
