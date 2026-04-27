@@ -29,22 +29,22 @@ export default function Home() {
   };
 
   return (
-    <div className="relative h-full flex items-center justify-center overflow-hidden bg-grid-white/[0.05]">
+    <div className="relative flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-5rem)] overflow-hidden bg-grid-white/[0.05] w-full">
       <div className="absolute pointer-events-none inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
       <motion.div
-        className="container mx-auto flex flex-col items-center justify-center text-center p-8 z-10"
+        className="container mx-auto flex flex-col items-center justify-center text-center px-6 sm:px-8 py-12 md:p-8 z-10"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div variants={itemVariants} className="mb-4">
-          <h1 className="font-headline text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-primary via-accent to-primary">
+        <motion.div variants={itemVariants} className="mb-4 w-full">
+          <h1 className="font-headline text-5xl sm:text-6xl md:text-8xl lg:text-[10rem] font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-primary via-accent to-primary break-words">
             Animuizu
           </h1>
         </motion.div>
         <motion.p
           variants={itemVariants}
-          className="max-w-2xl mx-auto my-4 text-lg md:text-xl text-muted-foreground"
+          className="max-w-2xl mx-auto my-6 text-base sm:text-lg md:text-xl text-muted-foreground px-6"
         >
           La batalla de trivia de anime en tiempo real definitiva. Desafía a tus amigos y sube en la clasificación. ¿Tienes lo que se necesita para ser un maestro Otaku?
         </motion.p>

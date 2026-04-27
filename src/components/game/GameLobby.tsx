@@ -66,7 +66,7 @@ export default function GameLobby() {
                     </CardHeader>
                     <CardContent className="flex-grow flex items-end">
                         <Button onClick={mode.action} className="w-full" disabled={mode.disabled}>
-                           {mode.iconAction} {mode.cta}
+                           {mode.cta}
                         </Button>
                     </CardContent>
                 </Card>

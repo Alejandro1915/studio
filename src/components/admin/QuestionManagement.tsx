@@ -41,7 +41,7 @@ export interface Question {
   image?: string;
 }
 
-const difficultyLevels: Difficulty[] = ['Fácil', 'Normal', 'Difícil'];
+const difficultyLevels = ['Fácil', 'Normal', 'Difícil'] as const;
 
 const questionSchema = z.object({
   id: z.string().optional(),

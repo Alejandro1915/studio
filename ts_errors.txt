@@ -1,0 +1,13 @@
+src/components/admin/QuestionManagement.tsx(53,22): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: readonly [string, ...string[]], params?: RawCreateParams): ZodEnum<[string, ...string[]]>', gave the following error.
+    Argument of type 'Difficulty[]' is not assignable to parameter of type 'readonly [string, ...string[]]'.
+      Source provides no match for required element at position 0 in target.
+  Overload 2 of 2, '(values: [string, ...string[]], params?: RawCreateParams): ZodEnum<[string, ...string[]]>', gave the following error.
+    Argument of type 'Difficulty[]' is not assignable to parameter of type '[string, ...string[]]'.
+      Source provides no match for required element at position 0 in target.
+src/components/game/GameLobby.tsx(69,34): error TS2339: Property 'iconAction' does not exist on type '{ title: string; description: string; icon: Element; action: () => void; cta: string; disabled: boolean; }'.
+src/components/game/Leaderboard.tsx(34,22): error TS2365: Operator '>' cannot be applied to types 'string | number' and 'number'.
+src/components/game/Leaderboard.tsx(35,25): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/game/Leaderboard.tsx(35,48): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/game/QuizArea.tsx(105,34): error TS2552: Cannot find name 'getDoc'. Did you mean 'getDocs'?
+src/hooks/use-auth.tsx(216,15): error TS2741: Property 'photoURL' is missing in type '{ name: string; email: string; role: "user"; score: number; score_easy: number; score_normal: number; score_hard: number; score_survival: number; unlockedAchievements: never[]; }' but required in type 'Omit<User, "uid">'.

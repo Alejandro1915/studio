@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion, Heart } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader, ShieldQuestion, Heart, Flame } from 'lucide-react';
+import { playCorrectSound, playIncorrectSound, playTickSound } from '@/lib/audio';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { collection, getDocs, doc, updateDoc, query, where, limit } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, updateDoc, query, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Question, Difficulty } from '../admin/QuestionManagement';
 import { Badge } from '../ui/badge';
@@ -51,7 +52,8 @@ export default function QuizArea({ gameId }: { gameId: string }) {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [lives, setLives] = useState(INITIAL_LIVES);
-  
+  const [combo, setCombo] = useState(0);
+  const [pointsEarned, setPointsEarned] = useState<number | null>(null);
   const isSurvivalMode = gameId === 'survival';
 
   useEffect(() => {
@@ -161,6 +163,9 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setTimeout(nextQuestion, 2000);
       return;
     }
+    if (timeLeft > 0 && timeLeft <= 5) {
+      playTickSound();
+    }
     const timer = setInterval(() => {
       setTimeLeft((prev) => prev - 1);
     }, 1000);
@@ -175,9 +180,16 @@ export default function QuizArea({ gameId }: { gameId: string }) {
     
     let points = 0;
     if (answer === currentQuestion.answer) {
-      points = 100 + timeLeft * 10;
+      playCorrectSound();
+      const newCombo = combo + 1;
+      setCombo(newCombo);
+      const comboBonus = newCombo >= 3 ? (newCombo * 20) : 0;
+      points = 100 + timeLeft * 10 + comboBonus;
       setScore((prev) => prev + points);
+      setPointsEarned(points);
     } else {
+        playIncorrectSound();
+        setCombo(0);
         handleIncorrectAnswer();
     }
     
@@ -205,6 +217,7 @@ export default function QuizArea({ gameId }: { gameId: string }) {
       setTimeLeft(TIME_PER_QUESTION);
       setSelectedAnswer(null);
       setIsAnswered(false);
+      setPointsEarned(null);
     } else {
         endGame();
     }
@@ -272,7 +285,32 @@ export default function QuizArea({ gameId }: { gameId: string }) {
                         ))}
                     </div>
                 )}
-                <div className="text-2xl font-bold text-accent">{score} pts</div>
+                {combo >= 3 && (
+                    <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: [1, 1.2, 1], opacity: 1 }}
+                        transition={{ repeat: Infinity, duration: 0.6 }}
+                        className="flex items-center text-orange-500 font-bold bg-orange-500/10 px-2 py-1 rounded-md"
+                    >
+                        <Flame className="w-5 h-5 mr-1" /> Combo x{combo}!
+                    </motion.div>
+                )}
+                <div className="text-2xl font-bold text-accent relative">
+                    {score} pts
+                    <AnimatePresence>
+                        {pointsEarned !== null && (
+                            <motion.div
+                                initial={{ opacity: 1, y: 0, scale: 1 }}
+                                animate={{ opacity: 0, y: -40, scale: 1.5 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 1 }}
+                                className="absolute -top-6 left-0 text-green-500 font-bold text-xl pointer-events-none whitespace-nowrap"
+                            >
+                                +{pointsEarned}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
         </div>
         <Progress value={(timeLeft / TIME_PER_QUESTION) * 100} className="w-full h-2" />

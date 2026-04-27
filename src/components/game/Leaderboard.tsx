@@ -31,8 +31,8 @@ const RankIcon = ({ rank }: { rank: number }) => {
 const LeaderboardTable = ({ users, scoreField, currentUser }: { users: User[], scoreField: keyof User, currentUser: any }) => {
     const router = useRouter();
     const sortedUsers = [...users]
-        .filter(u => (u[scoreField] || 0) > 0)
-        .sort((a, b) => (b[scoreField] || 0) - (a[scoreField] || 0));
+        .filter(u => (u[scoreField] as number || 0) > 0)
+        .sort((a, b) => (b[scoreField] as number || 0) - (a[scoreField] as number || 0));
 
     if (sortedUsers.length === 0) {
         return <p className="text-center text-muted-foreground py-8">Nadie ha jugado en este modo todavía. ¡Sé el primero!</p>
